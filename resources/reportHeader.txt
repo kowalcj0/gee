@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Bootstrap 101 Template</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../../resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style type='text/css'>
+    .container {
+        width:1920px;
+    }
+    img { 
+        max-width: 1920px;
+    }
+    #graphCarousel {
+        width: 1900px;
+        margin: 0px auto;
+    } 
+    .emptyCarouselItem {
+        width:1900px;
+        height:1200px;
+    }
+    </style>
+  </head>
+  <body>
+    <script src="http://code.jquery.com/jquery.js"></script>
+    <script src="../../../resources/bootstrap/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+    // disable carousel auto-slide 
+    $(document).ready(function() {
+        $('#graphCarousel').each(function(){
+            $(this).carousel({
+                interval: false
+            });
+        });
+    });
+    </script>
+<div class="container">
+    <div class="row">
+        <div class="span9">
+            <div class="row">
+                <div class="span2">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Slide to graph</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="0">Response Times Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="1">Latencies Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="2">Response Times Distribution</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="3">Response Times Percentiles</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="4">Bytes Throughput Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="5">Server Hits per Second</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="6">Response Codes per Second</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="7">Response Times vs Threads</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="8">Transactions per Second</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="9">Transaction Throughput vs Threads</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="10">PerfMon Remote</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="11">PerfMon Local</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="span2">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Few words on</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
+                            <li><a tabindex="-1" href="#DefineResponseTimesOverTime">Response Times Over Time</a></li>
+                            <li><a tabindex="-1" href="#DefineLatenciesOverTime">Latencies Over Time</a></li>
+                            <li><a tabindex="-1" href="#DefineResponseTimesDistribution">Response Times Distribution</a></li>
+                            <li><a tabindex="-1" href="#DefineResponseTimesPercentiles">Response Times Percentiles</a></li>
+                            <li><a tabindex="-1" href="#DefinePerfMon">PerfMon - Performance Monitor</a></li>
+                            <li><a tabindex="-1" href="#DefineThroughputVsThreads">Transaction Throughput vs Threads</a></li>
+                            <li><a tabindex="-1" href="#DefineTransactionsPerSecond">Transactions per Second</a></li>
+                            <li><a tabindex="-1" href="#DefineResponseCodesPerSecond">Response Codes per Second</a></li>
+                            <li><a tabindex="-1" href="#DefineTimesVsThreads">Response Times vs Threads</a></li>
+                            <li><a tabindex="-1" href="#DefineHitsPerSecond">Server Hits per Second</a></li>
+                            <li><a tabindex="-1" href="#DefineBytesThroughputOverTime">Bytes Throughput Over Time</a></li>
+                        </ul>
+                 </div>
+                </div>
+            </div>
+
+
+            <div id="graphCarousel" class="carousel slide">
+              <!-- Carousel items -->
+              <div class="carousel-inner">
+

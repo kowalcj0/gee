@@ -1,0 +1,12 @@
+              </div>
+              <!-- Carousel nav -->
+              <a class="carousel-control left" href="#graphCarousel" data-slide="prev">&lsaquo;</a>
+              <a class="carousel-control right" href="#graphCarousel" data-slide="next">&rsaquo;</a>
+            </div>
+
+           
+
+            <div class="span9">
+                <h2>Graphs generated from separate result files</h2>
+                <p>
+

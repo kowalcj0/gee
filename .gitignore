@@ -1,0 +1,28 @@
+.DS_Store
+*.out
+*.jtl
+*.log
+*.tmp
+*.swp
+*.zip
+*.png
+!docs-SampleResultSaveConfiguration.png
+*.html
+0
+
+ec2/bin
+ec2/lib
+
+target
+
+#ec2 keys
+*.pem
+
+# file with user specific AWS access keys
+*_secrets.properties
+
+#gedit
+*.*~
+
+#jmeter
+apache-jmeter*

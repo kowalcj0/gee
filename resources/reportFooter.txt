@@ -1,0 +1,96 @@
+                </p>
+            </div>
+
+            <div class="span9">
+                <h2>Few words on each graph</h2>
+                <p>
+                    <h3>Elapsed time explained by <a href='http://www.datazoo.de/articles/158/performance-testing-analyzing-jmeter-results' target='_blank'>Martin Gross</a></h3>
+                    <blockquote>
+                    JMeter measures the elapsed time from just before sending the request to just after the last response has been received. 
+                    JMeter does not include the time needed to render the response, nor does JMeter process any client code, for example Javascript.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3>Latency explained by <a href='http://www.datazoo.de/articles/158/performance-testing-analyzing-jmeter-results' target='_blank'>Martin Gross</a></h3>
+                    <blockquote>
+                    JMeter measures the latency from just before sending the request to just after the first response has been received. Thus the time 
+                    includes all the processing needed to assemble the request as well as assembling the first part of the response, which in general will be longer than one byte. 
+                    Protocol analysers (such as Wireshark) measure the time when bytes are actually sent/received over the interface. The JMeter time should be closer to that which 
+                    is experienced by a browser or other application client.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineResponseTimesOverTime' href='http://code.google.com/p/jmeter-plugins/wiki/ResponseTimesOverTime' target='_blank'>Response Times Over Time</a></h3>
+                    <blockquote>
+                    This graph displays for each sampler the average response time in milliseconds.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineLatenciesOverTime' href='http://code.google.com/p/jmeter-plugins/wiki/LatenciesOverTime' target='_blank'>Latencies Over Time</a></h3>
+                    <blockquote>
+                    This graph will display the response latencies during the load test. A latency is the duration between the end of the request and the beginning of the server response.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineResponseTimesDistribution' href='http://code.google.com/p/jmeter-plugins/wiki/RespTimesDistribution' target='_blank'>Response Times Distribution</a></h3>
+                    <blockquote>
+                    This graph displays the response time distribution of the test. The X axis shows the response times grouped by interval, and the Y axis the number of samples which are contained in each interval.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineResponseTimesPercentiles' href='http://code.google.com/p/jmeter-plugins/wiki/RespTimePercentiles' target='_blank'>Response Times Percentiles</a></h3>
+                    <blockquote>
+                    This graph will display the percentiles for the response time values. X Axis represents percentage, Y Axis Response time values. One point (P, Value) means for the whole scenario, P percent of the values are bellow Value ms. The precision of the graph was updated in version 0.4.1 to 0.1 granularity. The percentiles are calculated in the range [0.1 .. 99.9] so outliers values will not break the graph Y range.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefinePerfMon' href='https://code.google.com/p/jmeter-plugins/wiki/PerfMon' target='_blank'>PerfMon - Perfmormance Monitor</a></h3>
+                    <blockquote>
+                    JMeter cannot retrieve by default server metrics except Tomcat ones. To overcome this situation, we have developed a server agent which will get performance data for JMeter. The agent uses the SIGAR open source library. It is composed of a Java common part and native libraries per OS.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineThroughputVsThreads' href='http://code.google.com/p/jmeter-plugins/wiki/TransactionThroughputVsThreads' target='_blank'>Transaction Throughput vs Threads</a></h3>
+                    <blockquote>
+                    It shows total server's transaction throughput for active test threads. The formula for total server transaction throughput is \<active threads\> * 1 second / <1 thread response time>
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineTransactionsPerSecond' href='http://code.google.com/p/jmeter-plugins/wiki/TransactionsPerSecond' target='_blank'>Transactions per Second</a></h3>
+                    <blockquote>
+                    This graph shows the number of transactions per second for each sampler. It counts for each seconds the number of finished transactions. Compared to the previous version (0.3.0), it will now also display the failed transactions.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineResponseCodesPerSecond' href='http://code.google.com/p/jmeter-plugins/wiki/ResponseCodesPerSecond' target='_blank'>Response Codes per Second</a></h3>
+                    <blockquote>
+                    This graph will display the response code per second returned during the test.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineTimesVsThreads' href='http://code.google.com/p/jmeter-plugins/wiki/ResponseTimesVsThreads' target='_blank'>Response Times vs Threads</a></h3>
+                    <blockquote>
+                    This graph shows how Response Time changes with amount of parallel threads. Naturally, server takes longer to respond when a lot of users requests it simultaneously. This graph visualizes such dependencies.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3><a id='DefineHitsPerSecond' href='http://code.google.com/p/jmeter-plugins/wiki/HitsPerSecond' target='_blank'>Server Hits per Second</a></h3>
+                    <blockquote>
+                    This graph will display the hits generated by the test plan to the server per second.
+                    </blockquote>
+                </p>
+                <p>
+                    <h3>
+                        <a id='DefineBytesThroughputOverTime' href='http://code.google.com/p/jmeter-plugins/wiki/BytesThroughput' target='_blank'>Bytes Throughput Over Time</a>
+                    </h3>
+                    <blockquote>
+                    This graph will display the amount of bytes sent and received by JMeter during the load test.
+                    </blockquote>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+  </body>
+</html>
