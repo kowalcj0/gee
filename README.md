@@ -104,14 +104,14 @@ Here's an example project folder structure:
 
 
 ### Why do we need those listeners:
-Generate Summary Results is used to show status updates while running your tests
-
-jp@gc Latencies Over Time result file is used to generate most of the graphs.
-
-PerfMon Collector listeners, will collect stat data from the:
+__Generate Summary Results__ is used to show status updates while running your tests
+__jp@gc Latencies Over Time__ result file is used to generate most of the graphs.
+__PerfMon Collector listeners__, will collect stat data from the:
 * machines you're running your test against  
 * and from the EC2 machines running your jmeter tests
-In both cases we're using [server-agent](http://code.google.com/p/jmeter-plugins/wiki/PerfMonAgent) to collect that data
+
+To collect data from both sources we're using [server-agent](http://code.google.com/p/jmeter-plugins/wiki/PerfMonAgent).
+Read the short manual how to run the server agent on the remote machines.
 
 
 # How to run your project
