@@ -92,7 +92,7 @@ In `projects` directory create a folder with the same name as the project file.
 Then create `jmx` folder in it and place your jmx there.
 Here's an example project folder structure:
 
-   ./jmeter-ec2
+    ./jmeter-ec2
         |
         \projects
             |
