@@ -17,28 +17,30 @@ This means that the section in the original project description about the
 pre-requisits and system variables is not valid anymore apart from the JAVA\_HOME
 
 
-## Modified Pre-requisits
+## Prerequisites
 1. java 6+ with JAVA\_HOME sys variable set `required to locally generate graphs`
 2. CLI tools: scp, wget, zip, unzip, grep `required to download: jmeter with plugins, ec2 tools, results from nodes`
 3. an EC2 account, a key pair pem file along with AWS Access Key ID & Secret Access Key
 
 
-Obtain your:
-* Key Pair pem file [here](https://console.aws.amazon.com/ec2/home?region=us-east-1#s=KeyPairs)
-* and Access Key ID & Secret Access Key at the [Security Credentials](https://portal.aws.amazon.com/gp/aws/securityCredentials) page
+To get your your:
+* Key Pair pem file (it's a private key) go [here](https://console.aws.amazon.com/ec2/home?region=us-east-1#s=KeyPairs)
+* Access Key ID & Secret Access Key go to the [Security Credentials](https://portal.aws.amazon.com/gp/aws/securityCredentials) page
 
 
 Then:
 * Save the pem file in the ./ec2 folder
-* Change the pem file properties to 400, i.e. chmod 400 ./ec2/thisipemfile.pem
+* Change the pem file properties to 400, i.e. `chmod 400 ./ec2/thisipemfile.pem`
 * Create a copy of the 'secrets.properties' file and prepend your user name to its name. (\*)
 * Add your Access Key ID and Access Secret Key is that file
 
 
-(\*) e.g. if your user name is 'jk', then file should be named: jk\_secrets.properties
+(\*) i.e.: if your user name is 'jk', then file should be named: jk\_secrets.properties
+ps. By default all the \*\_secrets.properties files are ignored by git. 
+To change this behaviour please edit .gitignore file.
 
 
-## How to configure the tool setting
+## How to configure it
 Edit the file jmeter-ec2.properties and follow instruction inside that file.
 
 You can also create also a custom cfg file i.e. per specific environment and use
@@ -49,33 +51,56 @@ tests on local machines and non on EC2
     project="drKingShultz" cfg="your_custom_cfg_file.properties" ./jmeter-ec2.sh
 ```
 
-## How to configure your jmeter (jmx) project file
-Please refer to the example "drKingShultz" project for more details.
+## How to set up your jmeter (jmx) project
+Please you start creating your own project, please refer to an example project 
+called "drKingShultz" in projects folder.
 
-To get more control over the generated load it's recommended to use:
-Utlimate Thread Group plugin.
+In next few steps I'll try to explain how I configure my projects.
 
-Once you've added such a thread to your project, to produce all the nice graphs,
-it's required to add four listeners to your project:
-* two to the thread groop
+__Step 1:__
+First of all I highly recommend using `Utlimate Thread Group` plugin as the thread manager.
+This plugin gives you precise control over the generated traffic.
+
+
+__Step 2:__
+Once you've added such a thread to your project, then to produce all the nice graphs,
+add four listeners to your project:
+* two to the thread group
     * jp@gc LatenciesOverTime
     * Generate Summary Results
 * and two outside of the thread group
     * 2 PerfMon Collector listeners (local & remote)
 
+__Step 3:__
 Having all listeners in place, the next step is to configure them.
 * Generate Summary Results 
-    * fortunately it doesn't require any configuration, but please don't change the name of it :)
+    * fortunately it doesn't require any configuration, but please leave its name unchanged :)
 * jp@gc LatenciesOverTime
     * should write it's results down to a "~/result.jtl" file.
 * 2 PerfMon Collector listeners (local & remote)
     * Remote one should write results in: ~/PerfMon-remote.jtl
     * and Local one should write down to: ~/PerfMon-local.jtl
+* jp@gc LatenciesOverTime and PerfMon Collectors 
+    * should be configured just like this:
+    * ![alt text](./resources/SampleResultSaveConfiguration.png "Sample Result Save Configuration")
 
-Both jp@gc LatenciesOverTime and PerfMon Collectors should be configured just like this:
-![alt text](./resources/SampleResultSaveConfiguration.png "Sample Result Save Configuration")
+btw. Listener's "Configure" button is here :
+![alt text](./resources/Listener-configuration.png "Listener Configure button")
 
-ps. click on the "Configure" button to get that config windows above :)
+__Step 4:__
+In `projects` directory create a folder with the same name as the project file.
+Then create `jmx` folder in it and place your jmx there.
+Here's an example project folder structure:
+
+   ./jmeter-ec2
+        |
+        \projects
+            |
+            \drKingShultz
+                |
+                \jmx
+                    |
+                    \drKingShultz.jmx
 
 
 ### Why do we need those listeners:
@@ -90,39 +115,24 @@ In both cases we're using [server-agent](http://code.google.com/p/jmeter-plugins
 
 
 # How to run your project
-Once you JMeter project is ready to flood the SUT, create a folder with the same
-name as the jmx file, and then inside that folder create a jmx subfolder and finally
-place the jmx file there. For example if the project file name is 
-"drKingShultz.jmx" then the folder structure is:
-
-    jmeter-ec2
-        |
-        \drKingShultz
-            |
-            \jmx
-                |
-                \drKingShultz.jmx
-
-
-At the moment this script works well on Linux OSes, and can be executed 
-locally or on CI system like Jenkins.
+At the moment this script works well on Linux OSes (tested on Linux Mint 13,14,15, Ubuntu 12.04). 
+Moreover it can be easily scheduled for execution on CI system like Jenkins.
 
 ## How to run it locally
-Once you have your environment configured, select the project you want to run.
-Then simply run it:
+Once you have everything in place, simply run:
 
 ```bash
     project="drKingShultz" count="2" ./jmeter-ec2.sh
 ```
 
-Where "count" stands for the number of EC2 instances to be launched
+"count" stands for the number of EC2 instances to be launched
 
 To get a bit more verbose output, enable DEBUG mode :
 ```bash
     DEBUG=true project="drKingShultz" count="2" ./jmeter-ec2.sh
 ```
 
-## How to run in on Jenkins
+## How to run it on Jenkins
 Create a new job:
 
 Mark 'This build is parameterized' as enabled.
@@ -151,8 +161,26 @@ in the "Build" section add "Execute shell" and paste the code below:
     fi;
 ```
 
+## How to run it with local linux boxes
+To access boxes that will be used as load generators, you'll need to configure 
+them to allow passwordless SSH access.
+[Here's](http://www.debian-administration.org/articles/152) a nice article how this can be done on Debian based OSes.
+
+Then create a copy of `example-local-config.properties` file and adjust it to your needs.
+The most important thing to remember is to fill up the list of the hostnames with valid
+IPs/Hostnames you're going to use as generators and a pem key filename, which is your private key, generated when configuring passwordless SSH access.
+
+Then run the project providing the "cfg" parameter.
+
+```bash
+   project="drKingShultz" cfg="path/to/your/custom/config/file" ./jmeter-ec2.sh 
+```
+
+ps. You don't have to provide the "count" parameter, as it will be automatically set to number of hosts in the config file.
+
+
 ## Reports
-Once test run is done, you can find a HTML report in the:
+Once test is finished, you can find a simple HTML report in the:
 
     jmeter-ec2
         |
@@ -166,7 +194,7 @@ Report file name will start with the Datetime when test was run: %Y-%m-%d_-_%H-%
 
 ## How to generate graphs from long test runs
 
-By default this script generates graphs with size 1920x1200px
+By default jmeter-ec2 script will generate graphs using 1920x1200px resolution.
 In case you need to process result files from very long test runs, you can use
 analyzeZippedResults.sh script for this purpose.
 
