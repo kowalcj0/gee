@@ -6,7 +6,8 @@
 *.swp
 *.zip
 *.png
-!docs-SampleResultSaveConfiguration.png
+!SampleResultSaveConfiguration.png
+!Listener-configuration.png
 *.html
 0
 
