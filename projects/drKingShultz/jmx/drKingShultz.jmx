@@ -139,7 +139,7 @@
         <stringProp name="TestPlan.comments">will collect PerfMon data from remote host running the SUT. Enable it when connection to the remote server-agent can be established!</stringProp>
       </kg.apc.jmeter.perfmon.PerfMonCollector>
       <hashTree/>
-      <kg.apc.jmeter.perfmon.PerfMonCollector guiclass="kg.apc.jmeter.vizualizers.PerfMonGui" testclass="kg.apc.jmeter.perfmon.PerfMonCollector" testname="jp@gc - PerfMon Collector local" enabled="true">
+      <kg.apc.jmeter.perfmon.PerfMonCollector guiclass="kg.apc.jmeter.vizualizers.PerfMonGui" testclass="kg.apc.jmeter.perfmon.PerfMonCollector" testname="jp@gc - PerfMon Collector local" enabled="false">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
           <name>saveConfig</name>
@@ -208,7 +208,7 @@
             <stringProp reference="../../collectionProp/stringProp[4]"/>
           </collectionProp>
         </collectionProp>
-        <stringProp name="TestPlan.comments">will collect PerfMon data from the local jmeter-ec2 instance</stringProp>
+        <stringProp name="TestPlan.comments">will collect PerfMon data from the host operating as jmeter generator (ie. EC2 instance or a linux host given in the list of host)</stringProp>
       </kg.apc.jmeter.perfmon.PerfMonCollector>
       <hashTree/>
       <kg.apc.jmeter.threads.UltimateThreadGroup guiclass="kg.apc.jmeter.threads.UltimateThreadGroupGui" testclass="kg.apc.jmeter.threads.UltimateThreadGroup" testname="jp@gc - Ultimate Thread Group" enabled="true">
@@ -237,7 +237,7 @@
       <hashTree>
         <OnceOnlyController guiclass="OnceOnlyControllerGui" testclass="OnceOnlyController" testname="Run Once Only - Read ENV specific CFG" enabled="true"/>
         <hashTree>
-          <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Read ENV Config Data" enabled="true">
+          <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Read Config Data [Remember to change ~/ to ../ when running locally. This is a limitation from the original jmeter-ec2 project]" enabled="true">
             <stringProp name="delimiter">,</stringProp>
             <stringProp name="fileEncoding">us-ascii</stringProp>
             <stringProp name="filename">~/data/DEV-cfg.csv</stringProp>
@@ -337,7 +337,7 @@
         </kg.apc.jmeter.vizualizers.CorrectedResultCollector>
         <hashTree/>
         <Summariser guiclass="SummariserGui" testclass="Summariser" testname="Generate Summary Results" enabled="true">
-          <stringProp name="TestPlan.comments">this is needed to see status updates when running with jmeter-ec2.sh</stringProp>
+          <stringProp name="TestPlan.comments">Please do not change name of this LISTENER :) This one is needed to get status updates whilst running in CLI</stringProp>
         </Summariser>
         <hashTree/>
       </hashTree>

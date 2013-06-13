@@ -89,7 +89,7 @@ PerfMon Collector listeners, will collect stat data from the:
 In both cases we're using [server-agent](http://code.google.com/p/jmeter-plugins/wiki/PerfMonAgent) to collect that data
 
 
-## How to run your project
+# How to run your project
 Once you JMeter project is ready to flood the SUT, create a folder with the same
 name as the jmx file, and then inside that folder create a jmx subfolder and finally
 place the jmx file there. For example if the project file name is 
@@ -160,8 +160,8 @@ Once test run is done, you can find a HTML report in the:
             |
             \results
 
-Report file name will start with the Datetime when test was run: %Y-%m-%d-%H\_%M-report.html 
-* ie: 2013-03-22-09\_56-report.html 
+Report file name will start with the Datetime when test was run: %Y-%m-%d_-_%H-%M-report.html 
+* ie: 2013-06-13_-_09-56-report.html 
 
 
 ## How to generate graphs from long test runs
