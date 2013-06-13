@@ -29,7 +29,7 @@ isProgramInstalled "java";
 ################################################################################
 # GLOBALS
 ################################################################################
-DATETIME=$(date +"%Y-%m-%d-%H_%M")  # more human readable date format, used to reporting
+DATETIME=$(date +"%Y-%m-%d_-_%H-%M")  # more human readable date format, used to reporting
 COUNT=
 TMP=`mktemp -d` # create temp folder for processing
 # declare all types of reports that you want to generate    
@@ -110,16 +110,19 @@ if [ -z "$TARGET" ] ; then
         cLog "Creating target directory in the current directory" ${DEBUG}
         mkdir ${TARGET}
     fi;
-    if [[ ! -d "${TARGET}/imgs" ]]; then
-        mkdir ${TARGET}/imgs #create folder for images
+    if [[ ! -d "${TARGET}/${DATETIME}" ]]; then
+        mkdir ${TARGET}/${DATETIME} #create folder for images
     fi;
 else
-    if [[ ! -d "${TARGET}/imgs" ]]; then
-        mkdir ${TARGET}/imgs #create folder for images
+    if [[ ! -d "${TARGET}/${DATETIME}" ]]; then
+        mkdir ${TARGET}/${DATETIME} #create folder for images
     fi;
 fi;
 
-
+# copy bootstrap folder to targer folder
+if [[ ! -d "${TARGET}/bootstrap" ]] ; then
+    cp -R ${MY_PATH}/resources/bootstrap ${TARGET}
+fi
 
 ################################################################################
 # STEP 2 - extract all the zips
@@ -142,7 +145,7 @@ refineGroupedFile "resultsMerged.jtl" "resultsMergedAndRefined.jtl"
 	#***************************************************************************
     # add report header to a new report file
 	#***************************************************************************
-    cat reportHeader.txt > ${TARGET}/${DATETIME}-report.html
+    cat resources/zipHeader.txt > ${TARGET}/${DATETIME}-report.html
 
 
 ################################################################################
@@ -155,6 +158,12 @@ generateGraphsFromFile GRAPHS[@] "resultsMergedAndRefined.jtl" "${WIDTH}" "${HEI
 
 
 ################################################################################
+# STEP 5 - run graph gen for perfMon
+################################################################################
+generatePerfMonGraphsFromFiles "${FILES}" "${WIDTH}" "${HEIGHT}"
+
+
+################################################################################
 # STEP 5 - create graphs from the individual result files
 ################################################################################
 # GRAPHS array is passed jsut as name, thus there is no $, it shall be 
@@ -163,19 +172,14 @@ generateGraphsFromFile GRAPHS[@] "resultsMergedAndRefined.jtl" "${WIDTH}" "${HEI
 generateGraphsFromFiles GRAPHS[@] "${FILES}" "${WIDTH}" "${HEIGHT}"
 
 
-################################################################################
-# STEP 6 - run graph gen for perfMon
-################################################################################
-generatePerfMonGraphsFromFiles "${FILES}" "${WIDTH}" "${HEIGHT}"
-
 	#***************************************************************************
     # add report header to a new report file
 	#***************************************************************************
-    cat reportFooter.txt >> ${TARGET}/${DATETIME}-report.html
+    cat resources/zipFooter.txt >> ${TARGET}/${DATETIME}-report.html
 
 
-tree $TMP
-tree ${TARGET}
+#tree $TMP
+#tree ${TARGET}
 
 ################################################################################
 # STEP 7 - tidy up

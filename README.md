@@ -1,8 +1,15 @@
-# JMeter ec2 Script
+# Gee - a JMeter EC2/Remote host Runner
 -----------------------------
 
-This project is based on the https://github.com/oliverlloyd/jmeter-ec2 tool.
-We've added few extension and modifitcations.
+This project is based on the Oliver Lloyd's [jmeter-ec2](https://github.com/oliverlloyd/jmeter-ec2) project.
+I've added few extension and modifitcations, like:
+* custom config files that are not commited to the repo
+* generate reports automatically using [JMeterPluginsCMD](https://code.google.com/p/jmeter-plugins/wiki/JMeterPluginsCMD)
+* generate reports manually from zipped result files using JMeterPluginsCMD
+* start PerfMon server agent on load generatign nodes
+* install jmeter-plugins
+* simple integration with [Jenkins CI](http://jenkins-ci.org/)
+
 If all pre-requisits are met, script will automatically download all required
 tools and plugins.
 Original script was modified in way that to make it as standalone as possible. 
@@ -11,7 +18,7 @@ pre-requisits and system variables is not valid anymore apart from the JAVA\_HOM
 
 
 ## Modified Pre-requisits
-1. java 6+ `required to locally generate graphs`
+1. java 6+ with JAVA\_HOME sys variable set `required to locally generate graphs`
 2. CLI tools: scp, wget, zip, unzip, grep `required to download: jmeter with plugins, ec2 tools, results from nodes`
 3. an EC2 account, a key pair pem file along with AWS Access Key ID & Secret Access Key
 

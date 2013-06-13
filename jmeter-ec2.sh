@@ -963,7 +963,7 @@ function runcleanup() {
                 cWarn "Node ${i} didn't return a PerfMon-remote.jtl file!!!"
                 echo -e "
                 <div class='item'>
-                    <h2><a class='text-error' href='#DefinePerfMon'>Perfiormance graph for the SUT is MISSING</a></h2>
+                    <h2><a class='text-error' href='#DefinePerfMon'>Performance graph for the SUT is MISSING</a></h2>
                     <div class='emptyCarouselItem'>
                         <blockquote class='text-error'>because jmeter-ec2 node no: ${i} did not return a PerfMon-remote.jtl file!!!</blockquote>
                     </div>
@@ -985,7 +985,7 @@ function runcleanup() {
                 cWarn "Node ${i} didn't return a Perf-Mon-local.jtl file!!!"
                 echo -e "
                 <div class='item'>
-                    <h2><a class='text-error' href='#DefinePerfMon'>Perfiormance graph of the jmeter-ec2 node is MISSING</a></h2>
+                    <h2><a class='text-error' href='#DefinePerfMon'>Performance graph of the jmeter-ec2 node is MISSING</a></h2>
                     <div class='emptyCarouselItem'>
                         <blockquote class='text-error'>because jmeter-ec2 node no: ${i} did not return a PerfMon-local.jtl file!!!</blockquote>
                     </div>

@@ -123,32 +123,6 @@ function getFolderNamesFromZipFileNames() {
     eval "${1}=(\"${dirsArray[@]}\")";
 }
 
-# Description: 
-# $1 a lisf of folders with result files from which graphs will be generated
-# $2 width of the graphs
-# $3 height of the graphs
-function generatePerfMonGraphFromFile() {
-    # expand passed array
-    # http://stackoverflow.com/questions/1063347/passing-arrays-as-parameters-in-bash#comment12455821_4017175
-    local resFile="${1}";
-    local resFileWOExtension=`basename "${resFile}" | cut -d. -f1`;
-    local width="${2}";
-    local height="${3}";
-
-    # generate graphs for given file
-    if [[ -e ${TMP}/${resFile} ]]; then
-        # generate all required graphs from the grouped results file
-        cLog "Generating PerfMon graph from '${folder}/PerfMon-remote.jtl' file"
-        java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png ${TARGET}/imgs/${DATETIME}-PerfMon-from-file-${resFileWOExtension}.png --input-jtl "${TMP}/${resFile}" --plugin-type PerfMon --width ${width} --height ${height}
-        
-        # add link and graph image to the report
-        echo -e "<br>
-        <a href='#${g}' class='graphName'>PerfMon</a> graph generated from ${resFile}
-        <br> <img src='imgs/${DATETIME}-PerfMon-from-file-${resFileWOExtension}.png' width=${width} height=${height}><br>
-        " >> ${TARGET}/${DATETIME}-report.html
-    fi;
-}
-
 
 # Description: 
 # $1 a list of graphs to generate
@@ -160,7 +134,6 @@ function generateGraphsFromFile() {
     # http://stackoverflow.com/questions/1063347/passing-arrays-as-parameters-in-bash#comment12455821_4017175
     declare -a graphs=("${!1}");
     declare -a graphsWithoutRelTimeParam=("ResponseTimesDistribution" "ResponseTimesPercentiles" "TimesVsThreads" "ThroughputVsThreads");
-    declare -a graphsWithSmallerResolution=("ResponseTimesDistribution" "ResponseTimesPercentiles" "TimesVsThreads" "ThroughputVsThreads");
     local resFile="${2}";
     local width="${3}";
     local height="${4}";
@@ -168,6 +141,7 @@ function generateGraphsFromFile() {
     local INITIAL_width="${3}";
     local INITIAL_height="${4}";
 
+    COUNTER=0
     # generate all required graphs from the grouped results file
     for g in "${graphs[@]}"; do
         # don't add --relative-times parameter to some graphs
@@ -176,18 +150,33 @@ function generateGraphsFromFile() {
         height=${INITIAL_height};
         case "${graphsWithoutRelTimeParam[@]}" in *"${g}"*)
             insertRelativeTimeParam="";
-            width=1920;
-            height=1080;;
+            if [ $width -gt 1920 ]; then
+                let width=1920;
+            fi;
+            if [ $height -gt 1080 ]; then
+                let height=1080;
+            fi;;
         esac;
-        cLog "Generating '${g}' graph from the '${resFile}' file"
-        java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter ${insertRelativeTimeParam} --generate-png ${TARGET}/imgs/${DATETIME}-${g}-grouped.png --input-jtl "${TMP}/${resFile}" --plugin-type ${g} --width ${width} --height ${height}
+        cLog "Generating '${g}' graph (${width}px/${height}px) from '${resFile}'"
+        java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter ${insertRelativeTimeParam} --generate-png ${TARGET}/${DATETIME}/${g}-grouped.png --input-jtl "${TMP}/${resFile}" --plugin-type ${g} --width ${width} --height ${height}
         #cLog "Done"
         
-       # add link and graph image to the report
-       echo -e "<br>
-       <a href='#${res}' class='graphName'>${g}</a> graph generated from ${resFile}
-       <br> <img src='imgs/${DATETIME}-${g}-grouped.png' width=${width} height=${height}><br>
-       " >> ${TARGET}/${DATETIME}-report.html
+        # set first graph as active
+        if [ $COUNTER -eq 0 ]; then
+            active="active "
+            # increment counter so that we're no setting more items as active
+            let COUNTER=COUNTER+1
+        else
+            active=""
+        fi
+
+        # add link and graph image to the report
+        echo -e "
+                <div class='${active}item'>
+                    <h3><a href='#Define${g}'>${g} graph generated from ${resFile}</a></h3> 
+                    <img class='img-polaroid' src='${DATETIME}/${g}-grouped.png' width=${width} height=${height}>
+                </div>
+        " >> ${TARGET}/${DATETIME}-report.html
     done
 }
 
@@ -227,12 +216,14 @@ function generateGraphsFromFiles() {
                 height=1080;;
             esac;
             cLog "Generating '${g}' graph from '${folder}/result.jtl' file"
-            java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter ${insertRelativeTimeParam} --generate-png ${TARGET}/imgs/${DATETIME}-${g}-individual-${folder}.png --input-jtl "${folderPath}/result.jtl" --plugin-type ${g} --width ${width} --height ${height}
+            java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter ${insertRelativeTimeParam} --generate-png ${TARGET}/${DATETIME}/${g}-individual-${folder}.png --input-jtl "${folderPath}/result.jtl" --plugin-type ${g} --width ${width} --height ${height}
             
            # add link and graph image to the report
-           echo -e "<br>
-           <a href='#${g}' class='graphName'>${g}</a> graph generated from ${folder}/result.jtl<br>
-           <img src='imgs/${DATETIME}-${g}-individual-${folder}.png' width=${width} height=${height}><br>
+           echo -e "
+                <div class='item'>
+                    <h3><a href='#Define${g}'>${g} graph generated from ${folder}/result.jtl</a></h3> 
+                    <img class='img-polaroid' src='${DATETIME}/${g}-individual-${folder}.png' width=${width} height=${height}>
+                </div>
            " >> ${TARGET}/${DATETIME}-report.html
         done
    done;
@@ -260,26 +251,34 @@ function generatePerfMonGraphsFromFiles() {
         if [[ -e ${folderPath}/PerfMon-remote.jtl ]]; then
             # generate all required graphs from the grouped results file
             cLog "Generating PerfMon graph from '${folder}/PerfMon-remote.jtl' file"
-            java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png ${TARGET}/imgs/${DATETIME}-PerfMon-remote-${folder}.png --input-jtl "${folderPath}/PerfMon-remote.jtl" --plugin-type PerfMon --width ${width} --height ${height}
+            java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png ${TARGET}/${DATETIME}/PerfMon-remote-${folder}.png --input-jtl "${folderPath}/PerfMon-remote.jtl" --plugin-type PerfMon --width ${width} --height ${height}
             
             # add link and graph image to the report
-            echo -e "<br>
-            <a href='#${g}' class='graphName'>PerfMon</a> graph generated from ${folder}/PerfMon-remote.jtl
-            <br> <img src='imgs/${DATETIME}-PerfMon-remote-${folder}.png' width=${width} height=${height}><br>
+            echo -e "
+                <div class='item'>
+                    <h3><a href='#DefinePerfMon'>Performance graph generated from ${folderPath}/PerfMon-remote.jtl</a></h3> 
+                    <img class='img-polaroid' src='${DATETIME}/PerfMon-remote-${folder}.png' width=${width} height=${height}>
+                </div>
             " >> ${TARGET}/${DATETIME}-report.html
+        else
+            cWarn "Couldn't find PerfMon-remote.jtl file in: ${folderPath}"
         fi;
 
         # generate graphs for individual JMeter Nodes
         if [[ -e ${folderPath}/PerfMon-local.jtl ]]; then
             # generate all required graphs from the grouped results file
             cLog "Generating PerfMon graph from '${folder}/PerfMon-local.jtl' file"
-            java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png ${TARGET}/imgs/${DATETIME}-PerfMon-individual-${folder}.png --input-jtl "${folderPath}/PerfMon-local.jtl" --plugin-type PerfMon --width ${width} --height ${height}
+            java -Djava.awt.headless=true -jar ${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png ${TARGET}/${DATETIME}/PerfMon-individual-${folder}.png --input-jtl "${folderPath}/PerfMon-local.jtl" --plugin-type PerfMon --width ${width} --height ${height}
             
             # add link and graph image to the report
-            echo -e "<br>
-            <a href='#${g}' class='graphName'>PerfMon</a> graph generated from: ${folder}/PerfMon-local.jtl (it's a JMeter instance data)
-            <br> <img src='imgs/${DATETIME}-PerfMon-individual-${folder}.png' width=${width} height=${height}><br>
+            echo -e "
+                <div class='item'>
+                    <h3><a href='#DefinePerfMon'>Performance graph generated from ${folderPath}/PerfMon-individual</a></h3> 
+                    <img class='img-polaroid' src='${DATETIME}/PerfMon-individual-${folder}.png' width=${width} height=${height}>
+                </div>
             " >> ${TARGET}/${DATETIME}-report.html
+        else
+            cWarn "Couldn't find PerfMon-local file in: ${folderPath}"
         fi;
    done;
 }
