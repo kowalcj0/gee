@@ -104,8 +104,8 @@ Here's an example project folder structure:
 
 
 ### Why do we need those listeners:
-__Generate Summary Results__ is used to show status updates while running your tests
-__jp@gc Latencies Over Time__ result file is used to generate most of the graphs.
+__Generate Summary Results__ is used to show status updates while running your tests.  
+__jp@gc Latencies Over Time__ result file is used to generate most of the graphs.  
 __PerfMon Collector listeners__, will collect stat data from the:
 * machines you're running your test against  
 * and from the EC2 machines running your jmeter tests
