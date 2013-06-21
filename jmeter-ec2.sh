@@ -792,7 +792,12 @@ function runcleanup() {
       
     # download the results
     for i in ${!hosts[@]} ; do
-        echo -n "downloading results from ${hosts[$i]}..."
+        echo -e "\nkilling server agent on ${hosts[$i]}... \n"
+        ( ssh -nq -o StrictHostKeyChecking=no \
+        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        "pkill -f CMDRunner.jar")
+
+        echo -e "downloading results from ${hosts[$i]}..."
         scp -q -C -o UserKnownHostsFile=/dev/null \
                                      -o StrictHostKeyChecking=no \
                                      -i $PEM_PATH/$PEM_FILE \
@@ -816,7 +821,6 @@ function runcleanup() {
                                      $USER@${hosts[$i]}:$REMOTE_HOME/$DATETIME-$i-jtls.zip \
                                      $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip
         echo "$DATETIME-$i-jtls.zip was downloaded successfully"
-
     done
     echo
     
