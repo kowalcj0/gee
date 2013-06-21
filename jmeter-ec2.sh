@@ -25,7 +25,6 @@
 # load additional scripts
 . helpers.sh # contains handly console logging functions
 . secrets.sh # load additional script that can check for AWS creadentials
-getAWSSecrets;  # check if AWS Access Keys are set
 
 
 # more human readable date format, used to reporting
@@ -70,6 +69,9 @@ instance_count=$count
 
 # use default jmeter-ec2.properties cfg file if cfg is not specified
 if [ -z "$cfg" ] ; then 
+    # check if AWS Access Keys are set
+    getAWSSecrets;  
+
     # Execute the jmeter-ec2.properties file, establishing these constants.
     echo "Uing default cfg file: jmeter-ec2.properties";
     . jmeter-ec2.properties;

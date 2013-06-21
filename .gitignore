@@ -19,8 +19,11 @@ target
 #ec2 keys
 *.pem
 
-# file with user specific AWS access keys
-*_secrets.properties
+*.properties
+!secrets.properties
+!jmeter.properties
+!jmeter-ec2.properties
+!example-local-config.properties
 
 #gedit
 *.*~
