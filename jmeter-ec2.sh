@@ -46,6 +46,7 @@ if [ -z "$project" ] ; then
 	echo "[env]             -	optional"
 	echo "[release]         -	optional"
 	echo "[comment]         -	optional"
+	echo "[propfile]        -	optional, additional property file, translates into a jmeter '-q' CLI parameter "
 	echo
 	exit
 fi
@@ -63,7 +64,7 @@ if [ -z "$setup" ] ; then setup="TRUE" ; fi
 
 # default to TRUE if terminate is not specified
 if [ -z "$terminate" ] ; then terminate="TRUE" ; fi
-	
+
 # move count to instance_count
 instance_count=$count
 
@@ -525,7 +526,7 @@ function runsetup() {
 	        wait
 	        echo -n "done...."
 	    fi
-    
+   
 	    # scp jmeter.properties
 	    if [ -r $LOCAL_HOME/jmeter.properties ] ; then # don't try to upload this optional file if it is not present
 	        echo -n "jmeter.properties.."
@@ -547,6 +548,19 @@ function runsetup() {
 	                                          -i $PEM_PATH/$PEM_FILE \
 	                                          $LOCAL_HOME/jmeter $LOCAL_HOME/jmeter \
 	                                          $USER@$host:$REMOTE_HOME/$JMETER_VERSION/bin/) &
+	        done
+	        wait
+	        echo -n "done...."
+	    fi
+ 
+        # scp cfg dir
+        if [[ -d $LOCAL_HOME/projects/$project/cfg ]] && [[ -n $(ls $LOCAL_HOME/projects/$project/cfg/) ]]; then # don't try to upload this optional dir if it is not present
+	        echo -n "cfg dir.."
+	        for host in ${hosts[@]} ; do
+	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r \
+	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          $LOCAL_HOME/projects/$project/cfg \
+	                                          $USER@$host:$REMOTE_HOME/) &
 	        done
 	        wait
 	        echo -n "done...."
@@ -626,12 +640,26 @@ function runsetup() {
     # TO DO: Temp files are a poor way to track multiple subshells - improve?
     #
     for counter in ${!hosts[@]} ; do
-        ( ssh -nq -o StrictHostKeyChecking=no \
-        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} \
-        $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
-        -t $REMOTE_HOME/execute.jmx \
-        -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
-        >> $LOCAL_HOME/projects/$project/$DATETIME-${hosts[$counter]}-jmeter.out ) &
+        # if no additional jmeter property file is not provided
+        # then proceed as reqular
+        if [ -z "$propfile" ] ; then 
+            ( ssh -nq -o StrictHostKeyChecking=no \
+            -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} \
+            $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
+            -t $REMOTE_HOME/execute.jmx \
+            -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
+            >> $LOCAL_HOME/projects/$project/$DATETIME-${hosts[$counter]}-jmeter.out ) &
+        else 
+        # if an additional jmeter property file was provived then
+        # add it to the cmd line
+            ( ssh -nq -o StrictHostKeyChecking=no \
+            -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} \
+            $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
+            -t $REMOTE_HOME/execute.jmx \
+            -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
+            -q $REMOTE_HOME/$propfile \
+            >> $LOCAL_HOME/projects/$project/$DATETIME-${hosts[$counter]}-jmeter.out ) &
+        fi
     done
     echo
     echo
@@ -821,6 +849,17 @@ function runcleanup() {
                                      $USER@${hosts[$i]}:$REMOTE_HOME/$DATETIME-$i-jtls.zip \
                                      $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip
         echo "$DATETIME-$i-jtls.zip was downloaded successfully"
+
+        # deleteting all remote crap
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f *.jtl && rm -f *.zip && rm -f *.jmx && rm -f *.log && rm -f *.out && rm -f install.sh && rm -f *.properties)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -fr $REMOTE_HOME/data)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -fr $REMOTE_HOME/cfg)
+        echo "All remote files were deleted"
+
+
     done
     echo
     
