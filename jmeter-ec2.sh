@@ -917,7 +917,7 @@ function runcleanup() {
     done
 
     # declare all types of reports that we want to generate    
-    declare -a results=('ResponseTimesOverTime' 'LatenciesOverTime' 'ResponseTimesDistribution' 'ResponseTimesPercentiles' 'BytesThroughputOverTime' 'HitsPerSecond' 'ResponseCodesPerSecond' 'TimesVsThreads' 'TransactionsPerSecond' 'ThroughputVsThreads');
+    declare -a results=('ResponseTimesOverTime' 'LatenciesOverTime' 'ResponseTimesDistribution' 'ResponseTimesPercentiles' 'BytesThroughputOverTime' 'HitsPerSecond' 'ResponseCodesPerSecond' 'TimesVsThreads' 'TransactionsPerSecond' 'ThroughputVsThreads' 'ThreadsStateOverTime');
     declare -a graphsWithoutRelTimeParam=("ResponseTimesDistribution" "ResponseTimesPercentiles" "TimesVsThreads" "ThroughputVsThreads");
 
     # merge all the files
@@ -926,11 +926,22 @@ function runcleanup() {
         cat $LOCAL_HOME/projects/$project/$i/result.jtl >> $LOCAL_HOME/projects/$project/${DATETIME}-results-grouped.jtl
     done
   
+    # if folder for graphs doesn't exist, create it
+    if [ ! -d "$LOCAL_HOME/projects/$project/results/${DATETIME}" ] ; then
+        mkdir -p $LOCAL_HOME/projects/$project/results/${DATETIME}
+    fi
 
 	#***************************************************************************
-    # add report header to a new report file
-	#***************************************************************************
-    cat $LOCAL_HOME/resources/reportHeader.txt > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    # copy bootstrap folder to report folder
+    # add datatime to the report file that will point at the folder with graphs
+    # ps. that's why header filer is split in three parts
+    #***************************************************************************
+    cp -R resources/bootstrap $LOCAL_HOME/projects/$project/results/${DATETIME}
+    echo -n `cat $LOCAL_HOME/resources/reportHeader-part1.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    echo -n ${DATETIME} >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    echo -n `cat $LOCAL_HOME/resources/reportHeader-part2.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    echo -n ${DATETIME} >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    echo -n `cat $LOCAL_HOME/resources/reportHeader-part3.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
 
 
 	#***************************************************************************
@@ -949,11 +960,6 @@ function runcleanup() {
 
         echo "Moving last line to the beggining from ${DATETIME}-results-noErrors.jtl > ${DATETIME}-results-complete.jtl"
         sed '1h;1d;$!H;$!d;G' $LOCAL_HOME/projects/$project/${DATETIME}-results-noErrors.jtl  > $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl
-
-        # if folder for graphs doesn't exist, create it
-        if [ ! -d "$LOCAL_HOME/projects/$project/results/${DATETIME}" ] ; then
-            mkdir -p $LOCAL_HOME/projects/$project/results/${DATETIME}
-        fi
 
         # counter to define which carousel item is active
         COUNTER=0;

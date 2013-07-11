@@ -121,7 +121,7 @@ fi;
 
 # copy bootstrap folder to targer folder
 if [[ ! -d "${TARGET}/bootstrap" ]] ; then
-    cp -R ${MY_PATH}/resources/bootstrap ${TARGET}
+    cp -R ${MY_PATH}/resources/bootstrap ${TARGET}/${DATETIME}
 fi
 
 ################################################################################
@@ -142,11 +142,16 @@ mergeFilesUsingZipsNames "result.jtl" "${FILES}" "resultsMerged.jtl"
 refineGroupedFile "resultsMerged.jtl" "resultsMergedAndRefined.jtl"
  
 
-	#***************************************************************************
-    # add report header to a new report file
-	#***************************************************************************
-    cat resources/zipHeader.txt > ${TARGET}/${DATETIME}-report.html
-
+    #***************************************************************************
+    # add datatime to the report file that will point at the folder with graphs
+    # ps. that's why header filer is split in three parts
+    # I'm echo'eing with '-n' to remove new lines when appending to report file
+    #***************************************************************************
+    echo -n `cat resources/zipHeader-part1.txt` > ${TARGET}/${DATETIME}-report.html
+    echo -n ${DATETIME} >> ${TARGET}/${DATETIME}-report.html
+    echo -n `cat resources/zipHeader-part2.txt` >> ${TARGET}/${DATETIME}-report.html
+    echo -n ${DATETIME} >> ${TARGET}/${DATETIME}-report.html
+    echo -n `cat resources/zipHeader-part3.txt` >> ${TARGET}/${DATETIME}-report.html
 
 ################################################################################
 # STEP 4 - create graphs from the grouped file

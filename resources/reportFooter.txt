@@ -87,6 +87,14 @@
                     This graph will display the amount of bytes sent and received by JMeter during the load test.
                     </blockquote>
                 </p>
+                <p>
+                    <h3>
+                        <a id='DefineThreadsStateOverTime' href='https://code.google.com/p/jmeter-plugins/wiki/ActiveThreadsOverTime' target='_blank'>Active Threads Over Time</a>
+                    </h3>
+                    <blockquote>
+                    This graph shows how many active threads were there (multiply it by number of nodes) in each thread group during test run.
+                    </blockquote>
+                </p>
             </div>
         </div>
     </div>

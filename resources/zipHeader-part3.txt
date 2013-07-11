@@ -1,30 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Bootstrap 101 Template</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Bootstrap -->
-    <link href="../../../resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <style type='text/css'>
-    .container {
-        width:1920px;
-    }
-    img { 
-        max-width: 1920px;
-    }
-    #graphCarousel {
-        width: 1900px;
-        margin: 0px auto;
-    } 
-    .emptyCarouselItem {
-        width:1900px;
-        height:1200px;
-    }
-    </style>
-  </head>
-  <body>
-    <script src="http://code.jquery.com/jquery.js"></script>
-    <script src="../../../resources/bootstrap/js/bootstrap.min.js"></script>
+/bootstrap/js/bootstrap.min.js"></script>
     <script type="text/javascript">
     // disable carousel auto-slide 
     $(document).ready(function() {
@@ -53,8 +27,8 @@
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="7">Response Times vs Threads</a></li>
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="8">Transactions per Second</a></li>
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="9">Transaction Throughput vs Threads</a></li>
-                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="10">PerfMon Remote</a></li>
-                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="11">PerfMon Local</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="10">Active Threads Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="11">PerfMon graphs</a></li>
                         </ul>
                     </div>
                 </div>
@@ -73,6 +47,7 @@
                             <li><a tabindex="-1" href="#DefineTimesVsThreads">Response Times vs Threads</a></li>
                             <li><a tabindex="-1" href="#DefineHitsPerSecond">Server Hits per Second</a></li>
                             <li><a tabindex="-1" href="#DefineBytesThroughputOverTime">Bytes Throughput Over Time</a></li>
+                            <li><a tabindex="-1" href="#DefineThreadsStateOverTime">Active Threads Over Time</a></li>
                         </ul>
                  </div>
                 </div>
