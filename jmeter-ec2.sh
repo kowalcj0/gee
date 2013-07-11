@@ -851,14 +851,27 @@ function runcleanup() {
         echo "$DATETIME-$i-jtls.zip was downloaded successfully"
 
         # deleteting all remote crap
+        # had to split it in multiple lines to avoid situation when one of the
+        # RMs fails and prevents remaining commands from execution
         ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.jtl && rm -f *.zip && rm -f *.jmx && rm -f *.log && rm -f *.out && rm -f install.sh && rm -f *.properties)
+        rm -f *.jtl)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f *.zip)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f *.jmx)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f *.log)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f *.out)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f install.sh)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        rm -f *.properties)
         ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
         rm -fr $REMOTE_HOME/data)
         ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
         rm -fr $REMOTE_HOME/cfg)
         echo "All remote files were deleted"
-
 
     done
     echo
