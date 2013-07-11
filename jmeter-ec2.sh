@@ -952,9 +952,9 @@ function runcleanup() {
     cp -R resources/bootstrap $LOCAL_HOME/projects/$project/results/${DATETIME}
     echo -n `cat $LOCAL_HOME/resources/reportHeader-part1.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
     echo -n ${DATETIME} >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-    echo -n `cat $LOCAL_HOME/resources/reportHeader-part2.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    echo -n `cat $LOCAL_HOME/resources/reportHeader-part2.txt` >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
     echo -n ${DATETIME} >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-    echo -n `cat $LOCAL_HOME/resources/reportHeader-part3.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
+    echo -n `cat $LOCAL_HOME/resources/reportHeader-part3.txt` >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
 
 
 	#***************************************************************************
