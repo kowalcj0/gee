@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="2.4" jmeter="2.9 r1437961">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="perf-iyp-test-plan-template-with-data-file" enabled="true">
+      <stringProp name="TestPlan.comments">/**
+* 
+* A test plan template, that will read in a CSV data file
+*
+**/</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="Load config" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="hostname" elementType="Argument">
+            <stringProp name="Argument.name">hostname</stringProp>
+            <stringProp name="Argument.value">${__P(hostname,test)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="port" elementType="Argument">
+            <stringProp name="Argument.name">port</stringProp>
+            <stringProp name="Argument.value">${__P(port,8888)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="RPS" elementType="Argument">
+            <stringProp name="Argument.name">RPS</stringProp>
+            <stringProp name="Argument.value">${__P(RPS,1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Overall number of Requests per seconds (generated using all available load generators)</stringProp>
+          </elementProp>
+          <elementProp name="noOfLG" elementType="Argument">
+            <stringProp name="Argument.name">noOfLG</stringProp>
+            <stringProp name="Argument.value">${__P(noOfLG,1)}</stringProp>
+            <stringProp name="Argument.desc">number of load generators</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="duration" elementType="Argument">
+            <stringProp name="Argument.name">duration</stringProp>
+            <stringProp name="Argument.value">${__P(duration,1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="shutdown_time" elementType="Argument">
+            <stringProp name="Argument.name">shutdown_time</stringProp>
+            <stringProp name="Argument.value">${__P(shutdown_time,1)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="startup_delay" elementType="Argument">
+            <stringProp name="Argument.name">startup_delay</stringProp>
+            <stringProp name="Argument.value">${__P(startup_delay,0)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="protocol" elementType="Argument">
+            <stringProp name="Argument.name">protocol</stringProp>
+            <stringProp name="Argument.value">${__P(protocol,http)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="datafilepath" elementType="Argument">
+            <stringProp name="Argument.name">datafilepath</stringProp>
+            <stringProp name="Argument.value">${__P(datafilepath,data/data.txt)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="connect_timeout" elementType="Argument">
+            <stringProp name="Argument.name">connect_timeout</stringProp>
+            <stringProp name="Argument.value">${__P(connect_timeout,10000)}</stringProp>
+            <stringProp name="Argument.desc">Connection Timeout. Number of milliseconds to wait for a connection to open.</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="response_timeout" elementType="Argument">
+            <stringProp name="Argument.name">response_timeout</stringProp>
+            <stringProp name="Argument.value">${__P(response_timeout,10000)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Response Timeout. Number of milliseconds to wait for a response.</stringProp>
+          </elementProp>
+          <elementProp name="autoStopErrorRateThreshold" elementType="Argument">
+            <stringProp name="Argument.name">autoStopErrorRateThreshold</stringProp>
+            <stringProp name="Argument.value">${__P(autoStopErrorRateThreshold,5)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Define the Error Rate threshold for the AutoStop Listener. If met then test will fail.</stringProp>
+          </elementProp>
+          <elementProp name="autoStopErrorRateFailureInterval" elementType="Argument">
+            <stringProp name="Argument.name">autoStopErrorRateFailureInterval</stringProp>
+            <stringProp name="Argument.value">${__P(autoStopErrorRateFailureInterval,10)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Define the failure interval when the Error Rate is in acceptable range. If breached, test will fail.</stringProp>
+          </elementProp>
+          <elementProp name="autoStopAvgRespTimeThreshold" elementType="Argument">
+            <stringProp name="Argument.name">autoStopAvgRespTimeThreshold</stringProp>
+            <stringProp name="Argument.value">${__P(autoStopAvgRespTimeThreshold,5000)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Define the Avg. Response time threshold for the AutoStop Listener. If met then test will fail.</stringProp>
+          </elementProp>
+          <elementProp name="autoStopAvgRespTimeFailureInterval" elementType="Argument">
+            <stringProp name="Argument.name">autoStopAvgRespTimeFailureInterval</stringProp>
+            <stringProp name="Argument.value">${__P(autoStopAvgRespTimeFailureInterval,10)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Define the failure interval when the avg. resp. time is in acceptable range. If breached, test will fail.</stringProp>
+          </elementProp>
+          <elementProp name="autoStopAvgLatencyTimeThreshold" elementType="Argument">
+            <stringProp name="Argument.name">autoStopAvgLatencyTimeThreshold</stringProp>
+            <stringProp name="Argument.value">${__P(autoStopAvgLatencyTimeThreshold,5000)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Define the Avg. Latency time threshold for the AutoStop Listener. If met then test will fail.</stringProp>
+          </elementProp>
+          <elementProp name="autoStopAvgLatencyTimeFailureInterval" elementType="Argument">
+            <stringProp name="Argument.name">autoStopAvgLatencyTimeFailureInterval</stringProp>
+            <stringProp name="Argument.value">${__P(autoStopAvgLatencyTimeFailureInterval,10)}</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+            <stringProp name="Argument.desc">Define the failure interval when the avg. latence time is in acceptable range. If breached, test will fail.</stringProp>
+          </elementProp>
+        </collectionProp>
+        <stringProp name="TestPlan.comments">/**
+*
+* Setup step that will try to load config variables provided as:
+* an explicit JMeter property i.e.: -Jthreads=10 
+* or 
+* loaded from an additional JMeter property file, ie: -q name_of_the_property_file.properties
+* If variable values are not provided the default values are used
+*
+**/</stringProp>
+      </Arguments>
+      <hashTree/>
+      <kg.apc.jmeter.threads.UltimateThreadGroup guiclass="kg.apc.jmeter.threads.UltimateThreadGroupGui" testclass="kg.apc.jmeter.threads.UltimateThreadGroup" testname="jp@gc - Ultimate Thread Group" enabled="true">
+        <collectionProp name="ultimatethreadgroupdata">
+          <collectionProp name="1215385281">
+            <stringProp name="1358590835">${__jexl(i=((${RPS}/${noOfLG})*4); i.intValue();)}</stringProp>
+            <stringProp name="-536929293">${startup_delay}</stringProp>
+            <stringProp name="1146764959">${RPS}</stringProp>
+            <stringProp name="-289938830">${duration}</stringProp>
+            <stringProp name="-1606215490">${shutdown_time}</stringProp>
+          </collectionProp>
+        </collectionProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <stringProp name="TestPlan.comments">/**
+*
+* We&apos;re using UTG to gain more control over the generated traffic.
+* Unfortunately because JMeter evaluates variables on runtime, you can&apos;t see the threads schedule graph in GUI mode.
+*
+* Number of threads - depends on the number of load generators and desired RPS. We have to calculate amount the user witha a cosntanct click rate equal to 4 clicks per second.
+* ie. : 250 RPS = 1000 Users clicking once every 4 seconds distributed on the number of load generators.
+* 
+* Ramp up time - is related to the RPS, because we need to prepare all the users for the full load
+*
+**/</stringProp>
+      </kg.apc.jmeter.threads.UltimateThreadGroup>
+      <hashTree>
+        <ConstantThroughputTimer guiclass="TestBeanGUI" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <stringProp name="TestPlan.comments">/**
+*
+* Every user clicks once every 4 seconds
+*
+**/</stringProp>
+          <doubleProp>
+            <name>throughput</name>
+            <value>15.0</value>
+            <savedValue>0.0</savedValue>
+          </doubleProp>
+          <stringProp name="calcMode">this thread only</stringProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="load data" enabled="true">
+          <stringProp name="delimiter">,</stringProp>
+          <stringProp name="fileEncoding">us-ascii</stringProp>
+          <stringProp name="filename">${datafilepath}</stringProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <stringProp name="shareMode">All threads</stringProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="variableNames">CONTEXT,</stringProp>
+          <stringProp name="TestPlan.comments">/**
+*
+* Reads URLs from a CSV data file and assign them in a round-robin manner to a variable &quot;CONTEXT&quot;
+*
+**/</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">${hostname}</stringProp>
+          <stringProp name="HTTPSampler.port">${port}</stringProp>
+          <stringProp name="HTTPSampler.connect_timeout">${connect_timeout}</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">${response_timeout}</stringProp>
+          <stringProp name="HTTPSampler.protocol">${protocol}</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
+          <stringProp name="HTTPSampler.path">${CONTEXT}</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+          <boolProp name="HTTPSampler.monitor">false</boolProp>
+          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="is200" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+            <stringProp name="TestPlan.comments">/**
+*
+* Assert that response code is 200 OK
+*
+**/</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="containsAnError" enabled="false">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="1389659968">(?is)error</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">6</intProp>
+            <stringProp name="TestPlan.comments">/**
+*
+* Assert that response doesn&apos;t contain any &quot;error&quot; words
+*
+**/</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+      <kg.apc.jmeter.reporters.AutoStop guiclass="kg.apc.jmeter.reporters.AutoStopGui" testclass="kg.apc.jmeter.reporters.AutoStop" testname="jp@gc - AutoStop Listener" enabled="true">
+        <stringProp name="avg_response_time">${autoStopAvgRespTimeThreshold}</stringProp>
+        <stringProp name="avg_response_time_length">${autoStopAvgRespTimeFailureInterval}</stringProp>
+        <stringProp name="error_rate">${autoStopErrorRateThreshold}</stringProp>
+        <stringProp name="error_rate_length">${autoStopErrorRateFailureInterval}</stringProp>
+        <stringProp name="avg_response_latency">${autoStopAvgLatencyTimeThreshold}</stringProp>
+        <stringProp name="avg_response_latency_length">${autoStopAvgLatencyTimeFailureInterval}</stringProp>
+        <stringProp name="TestPlan.comments">/**
+* 
+* Will automatically stop the test if we hit define error threshold
+*
+**/</stringProp>
+      </kg.apc.jmeter.reporters.AutoStop>
+      <hashTree/>
+      <kg.apc.jmeter.perfmon.PerfMonCollector guiclass="kg.apc.jmeter.vizualizers.PerfMonGui" testclass="kg.apc.jmeter.perfmon.PerfMonCollector" testname="jp@gc - PerfMon Metrics Collector - local" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>false</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <hostname>true</hostname>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+          </value>
+        </objProp>
+        <stringProp name="filename">~/PerfMon-local.jtl</stringProp>
+        <longProp name="interval_grouping">1000</longProp>
+        <boolProp name="graph_aggregated">false</boolProp>
+        <stringProp name="include_sample_labels"></stringProp>
+        <stringProp name="exclude_sample_labels"></stringProp>
+        <collectionProp name="metricConnections">
+          <collectionProp name="917712290">
+            <stringProp name="-1204607085">localhost</stringProp>
+            <stringProp name="1600768">4444</stringProp>
+            <stringProp name="66952">CPU</stringProp>
+            <stringProp name="0"></stringProp>
+          </collectionProp>
+          <collectionProp name="-211147206">
+            <stringProp name="-1204607085">localhost</stringProp>
+            <stringProp name="1600768">4444</stringProp>
+            <stringProp name="-1993889503">Memory</stringProp>
+            <stringProp name="-790024919">unit=mb:used</stringProp>
+          </collectionProp>
+          <collectionProp name="448386085">
+            <stringProp name="-1204607085">localhost</stringProp>
+            <stringProp name="1600768">4444</stringProp>
+            <stringProp name="2590131">Swap</stringProp>
+            <stringProp name="-790024919">unit=mb:used</stringProp>
+          </collectionProp>
+          <collectionProp name="461024727">
+            <stringProp name="-1204607085">localhost</stringProp>
+            <stringProp name="1600768">4444</stringProp>
+            <stringProp name="-274342153">Network I/O</stringProp>
+            <stringProp name="-380773927">unit=kb:bytessent</stringProp>
+          </collectionProp>
+          <collectionProp name="1281866940">
+            <stringProp name="-1204607085">localhost</stringProp>
+            <stringProp name="1600768">4444</stringProp>
+            <stringProp name="-274342153">Network I/O</stringProp>
+            <stringProp name="-380804057">unit=kb:bytesrecv</stringProp>
+          </collectionProp>
+        </collectionProp>
+        <stringProp name="TestPlan.comments">/**
+*
+* This listener will collect performance data from the JMeter node whilst it is generating load.
+*
+**/</stringProp>
+      </kg.apc.jmeter.perfmon.PerfMonCollector>
+      <hashTree/>
+      <kg.apc.jmeter.vizualizers.CorrectedResultCollector guiclass="kg.apc.jmeter.vizualizers.LatenciesOverTimeGui" testclass="kg.apc.jmeter.vizualizers.CorrectedResultCollector" testname="jp@gc - Generate results for all the CMD reporters" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>false</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>false</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <hostname>true</hostname>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+          </value>
+        </objProp>
+        <stringProp name="filename">~/result.jtl</stringProp>
+        <longProp name="interval_grouping">500</longProp>
+        <boolProp name="graph_aggregated">false</boolProp>
+        <stringProp name="include_sample_labels"></stringProp>
+        <stringProp name="exclude_sample_labels"></stringProp>
+        <stringProp name="TestPlan.comments">/**
+* 
+* All the result files generated by various JMeterPlugins report listeners are generating the same files (result files are identiacl after running sort -u)
+*
+**/</stringProp>
+      </kg.apc.jmeter.vizualizers.CorrectedResultCollector>
+      <hashTree/>
+      <kg.apc.jmeter.vizualizers.CorrectedResultCollector guiclass="kg.apc.jmeter.vizualizers.LatenciesOverTimeGui" testclass="kg.apc.jmeter.vizualizers.CorrectedResultCollector" testname="jp@gc - Result file for Jenkins Performance Plugin" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>false</message>
+            <threadName>false</threadName>
+            <dataType>false</dataType>
+            <encoding>false</encoding>
+            <assertions>false</assertions>
+            <subresults>false</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>true</xml>
+            <fieldNames>false</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>false</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <url>true</url>
+          </value>
+        </objProp>
+        <stringProp name="filename">~/jenkins.jtl</stringProp>
+        <longProp name="interval_grouping">500</longProp>
+        <boolProp name="graph_aggregated">false</boolProp>
+        <stringProp name="include_sample_labels"></stringProp>
+        <stringProp name="exclude_sample_labels"></stringProp>
+        <stringProp name="TestPlan.comments">/**
+* 
+* Saves a result file for Jenkins Performance Plugin.
+* I&apos;ve configured it to generate minimal subset of fields, to minify the filesize.
+* https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin
+*
+**/</stringProp>
+      </kg.apc.jmeter.vizualizers.CorrectedResultCollector>
+      <hashTree/>
+      <kg.apc.jmeter.vizualizers.CorrectedResultCollector guiclass="kg.apc.jmeter.vizualizers.ResponseCodesPerSecondGui" testclass="kg.apc.jmeter.vizualizers.CorrectedResultCollector" testname="jp@gc - Save Errors CSV" enabled="true">
+        <boolProp name="ResultCollector.error_logging">true</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>false</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>false</threadName>
+            <dataType>false</dataType>
+            <encoding>false</encoding>
+            <assertions>false</assertions>
+            <subresults>false</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+          </value>
+        </objProp>
+        <stringProp name="TestPlan.comments">/**
+* 
+* Store errors in separate CSV file for later analysis
+*
+**/</stringProp>
+        <stringProp name="filename">~/errors_csv.jtl</stringProp>
+        <longProp name="interval_grouping">1000</longProp>
+        <boolProp name="graph_aggregated">false</boolProp>
+        <stringProp name="include_sample_labels"></stringProp>
+        <stringProp name="exclude_sample_labels"></stringProp>
+      </kg.apc.jmeter.vizualizers.CorrectedResultCollector>
+      <hashTree/>
+      <kg.apc.jmeter.vizualizers.CorrectedResultCollector guiclass="kg.apc.jmeter.vizualizers.ResponseCodesPerSecondGui" testclass="kg.apc.jmeter.vizualizers.CorrectedResultCollector" testname="jp@gc - Save Errors XML" enabled="true">
+        <boolProp name="ResultCollector.error_logging">true</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>false</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>false</threadName>
+            <dataType>false</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>false</subresults>
+            <responseData>true</responseData>
+            <samplerData>true</samplerData>
+            <xml>true</xml>
+            <fieldNames>false</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>true</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+          </value>
+        </objProp>
+        <stringProp name="TestPlan.comments">/**
+* 
+* Store errors in separate XML file for later analysis
+*
+* Compared to CSV error file this listener will also save send POST data!
+**/</stringProp>
+        <stringProp name="filename">~/errors_xml.jtl</stringProp>
+        <longProp name="interval_grouping">1000</longProp>
+        <boolProp name="graph_aggregated">false</boolProp>
+        <stringProp name="include_sample_labels"></stringProp>
+        <stringProp name="exclude_sample_labels"></stringProp>
+      </kg.apc.jmeter.vizualizers.CorrectedResultCollector>
+      <hashTree/>
+      <Summariser guiclass="SummariserGui" testclass="Summariser" testname="Generate Summary Results" enabled="true">
+        <stringProp name="TestPlan.comments">/**
+*
+* Required to display execution progress in console log
+*
+**/</stringProp>
+      </Summariser>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

@@ -1,8 +1,8 @@
 # ignore all other files
-*
+#*
 # do not ignore demo project
-!drKingShultz
+#!drKingShultz
 
 # do not ignore itself :)
-!.gitignore
+#!.gitignore
 

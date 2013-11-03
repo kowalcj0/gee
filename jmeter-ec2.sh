@@ -30,6 +30,8 @@
 # more human readable date format, used to reporting
 DATETIME=$(date +"%Y-%m-%d_-_%H-%M") 
 
+# set custom format for "time" command
+#export TIMEFORMAT='Elapsed real time used by the last process: %E seconds!'
 
 # First make sure we have the required params and if not print out an instructive message
 if [ -z "$project" ] ; then
@@ -47,6 +49,7 @@ if [ -z "$project" ] ; then
 	echo "[release]         -	optional"
 	echo "[comment]         -	optional"
 	echo "[propfile]        -	optional, additional property file, translates into a jmeter '-q' CLI parameter "
+	echo "[logfile]         -	optional, the file to log samples to, translates into a jmeter '-l' CLI parameter. Can come handy when using Jenkins Performance plugin "
 	echo
 	exit
 fi
@@ -66,33 +69,134 @@ if [ -z "$setup" ] ; then setup="TRUE" ; fi
 if [ -z "$terminate" ] ; then terminate="TRUE" ; fi
 
 # move count to instance_count
+if [ -z "$count" ] ; then count=1 ; fi
 instance_count=$count
+
+LOCAL_HOME="`pwd`";
+cLog "LOCAL_HOME before processing config files is: ${LOCAL_HOME}"
 
 # use default jmeter-ec2.properties cfg file if cfg is not specified
 if [ -z "$cfg" ] ; then 
     # check if AWS Access Keys are set
-    getAWSSecrets;  
+    getAWSSecrets; 
+
+    if [ -f "$LOCAL_HOME/jmeter-ec2.properties" ] ; then
+        cLog "Found jmeter-ec2.properties in $LOCAL_HOME. Loading it."
+        . $LOCAL_HOME/jmeter-ec2.properties
+    fi
 
     # Execute the jmeter-ec2.properties file, establishing these constants.
-    echo "Uing default cfg file: jmeter-ec2.properties";
-    . jmeter-ec2.properties;
+    # If exists then run a local version of the properties file to allow project customisations.
+    if [ -f "$LOCAL_HOME/projects/$project/jmeter-ec2.properties" ] ; then
+        echo "Found a project specific jmeter-ec2.properties file. Loading it.";
+        . $LOCAL_HOME/projects/$project/jmeter-ec2.properties
+    fi
 else
     echo "using custom cfg file: ${cfg}";
     . ${cfg}
 fi
 
+cLog "LOCAL_HOME after processing config files is: ${LOCAL_HOME}"
 
-# run scripts to install ec2 tools and jmeter if needed
-./download-ec2-tools.sh
-./download-jmeter.sh
+# if parameters are not null then map them to jmeter CLI params
+# those variables are initialized here because first we have to load cfg file
+# to determine the $REMOTE_HOME
+if [ ! -z "$propfile" ] ; then propfile=" -q $REMOTE_HOME/${propfile}" ; fi
+if [ ! -z "$logfile" ] ; then logfile=" -l $REMOTE_HOME/${logfile}" ; fi
 
 
-# If exists then run a local version of the properties file to allow project customisations.
-if [ -f "$LOCAL_HOME/projects/$project/jmeter-ec2.properties" ] ; then
-	. $LOCAL_HOME/projects/$project/jmeter-ec2.properties
+###############################################################################
+#
+# Configure filenames for reports etc
+# if none of those variables is not provided in the command line, then 
+# default values will be used.
+# by NIXCRAFT
+# http://www.cyberciti.biz/faq/bash-ksh-if-variable-is-not-defined-set-default-variable/
+cWarn "\n/************************************\n* Current settings"
+REMOTE_PORT=${REMOTE_PORT-22} # use default SSH port 22 if not provided
+cfgHtmlReportFilename=${cfgHtmlReportFilename-${DATETIME}-report.html}
+cfgHtmlReportGraphsDir=${cfgHtmlReportGraphsDir-${DATETIME}}
+cfgJenkinsPerfPluginResultFilename=${cfgJenkinsPerfPluginResultFilename-${DATETIME}-jenkins.xml}
+cfgGraphGenerationTimeout=${cfgGraphGenerationTimeout-60} # kill the CMDRunner.jar if it takes too long to generate a PNG graph.
+cfgReportGraphWidth=${cfgReportGraphWidth-1920}
+cfgReportGraphHeight=${cfgReportGraphHeight-1080}
+cfgReportGraphWidthForGraphsWithRelativeTime=${cfgReportGraphWidthForGraphsWithRelativeTime-1920}
+cfgReportGraphHeightForGraphsWithRelativeTime=${cfgReportGraphHeightForGraphsWithRelativeTime-1080}
+cfgAggregatedResponseTimePercentilesReportsGenerate=${cfgAggregatedResponseTimePercentilesReportsGenerate-false}
+cfgAggregatedResponseTimePercentilesReportsInputFile=${cfgAggregatedResponseTimePercentilesReportsInputFile-$LOCAL_HOME/projects/$project/results/aggregatedResponseTimesPercentiles.csv}
+cfgAggregatedResponseTimePercentilesReportsOuputFolder=${cfgAggregatedResponseTimePercentilesReportsOuputFolder-$LOCAL_HOME/projects/$project/results/}
+cfgSaveCompressedResults=${cfgSaveCompressedResults-true}
+cfgPython=${cfgPython-python} # define which version of python you want to use to run genAggregateRepsTimesPercentilesReports.py
+cfgDeleteContentsOfResultsFolder=${cfgDeleteContentsOfResultsFolder-true}
+cfgTailRemoteJmeterLogs=${cfgTailRemoteJmeterLogs-true} # show last 10 lines of downloaded JMeter's log
+cfgCreateHTMLReport=${cfgCreateHTMLReport-true} # If false no PNG graphs will be generated
+cfgCreateAggregateCSVReport=${cfgCreateAggregateCSVReport-true}
+cfgCreateGraphsForEachLoadGenerator=${cfgCreateGraphsForEachLoadGenerator-false} # decide whether graphs from individual load generators should be created and added to the HTML report
+cfgCreateMergedFileForJenkinsPerfPlugin=${cfgCreateMergedFileForJenkinsPerfPlugin-true}
+cfgGenerateAggregatedResponseTimePercentilesReports=${cfgGenerateAggregatedResponseTimePercentilesReports-true}
+cfgCreateMergedResultFile=${cfgCreateMergedResultFile-true}
+cfgLocalJmeterLogLevel=${cfgLocalJmeterLogLevel-WARN}
+cfgRemoteJmeterLogLevel=${cfgRemoteJmeterLogLevel-INFO}
+
+
+# TO-DO
+# add handlers to enable/disable feautres described by flags below:
+
+( set -o posix ; set ) | grep "^cfg"
+cWarn "\n* Carrying on with execution...\n************************************/"
+
+
+#exit 1
+#
+###############################################################################
+
+
+# will delete all files from the project's results folder except the .gitignore
+# This step helps to avoid situations when ie. Jenkins failed to run the job
+# properly and plugins like "Plot Plugin" or "Performnace Plugin" will use
+# result files from the previous build to update the performance trend.
+if [ ${cfgDeleteContentsOfResultsFolder} ] ; then
+    cLog "Deleting all contents of ${LOCAL_HOME}/projects/$project/results folder..."
+    cd ${LOCAL_HOME}/projects/$project/results \
+        && {
+            find '(' -name .gitignore ')' -prune -o -exec rm -rf {} \; \
+                && {
+                    cLog "All files from ${LOCAL_HOME}/projects/$project/results were deleted"
+                } || {
+                    cErr "Something went wrong when deleting files inside ${LOCAL_HOME}/projects/$project/results!!"
+                }
+        } || {
+            cWarn "Couldn't cd into ${LOCAL_HOME}/projects/$project/results!!!"
+        }
+    cd ${LOCAL_HOME}
 fi
 
-# because we have everything in  one folder and we are in the EC2_HOME, we don't need to go to the EC2_HOME
+
+# run scripts to install ec2 tools and jmeter if needed
+# if something goes wrong at this stage, abort the test!
+./download-ec2-tools.sh || { exit `echo $?` ; }
+./download-jmeter.sh || { exit `echo $?` ; }
+
+
+# change the JMeter's log_level in the jmeter.properties that will be uploaded
+# onto all load generators
+sed -i.bck 's/.*log_level.jmeter=.*/log_level.jmeter='${cfgRemoteJmeterLogLevel}'/' ${LOCAL_HOME}/jmeter.properties \
+    && {
+        cLog "JMeter's log_level for load generators was set to: ${cfgRemoteJmeterLogLevel}"
+    } || {
+        cErr "Couldn't modify the: '${LOCAL_HOME}/jmeter.properties' to change the log_level for load generators!!!"
+    }
+
+# change the JMeter's log_level in the locally installed JMeter
+# this will allow you to controll the logging verbosity while generating graphs
+sed -i.bck 's/.*log_level.jmeter=.*/log_level.jmeter='${cfgLocalJmeterLogLevel}'/' $LOCAL_HOME/${JMETER_VERSION}/bin/jmeter.properties \
+    && {
+        cLog "log_level of locally installed JMeter was set to: ${cfgLocalJmeterLogLevel}"
+    } || {
+        cErr "Couldn't modify the: '$LOCAL_HOME/${JMETER_VERSION}/bin/jmeter.properties' to change the log_level for locally installed instance of JMeter!!!"
+    }
+
+
 cd $EC2_HOME
 
 # check project directry exists
@@ -255,7 +359,7 @@ function runsetup() {
             for x in "${!instanceids[@]}" ; do
 				# check for ssh connectivity on the new address
 	            while ssh -o StrictHostKeyChecking=no -q -i $PEM_PATH/$PEM_FILE \
-	                $USER@${hosts[x]} true && test; \
+	                $USER@${hosts[x]} -p $REMOTE_PORT true && test; \
 	                do echo -n .; sleep 1; done
 	            # Note. If any IP is already in use on an instance that is still running then the ssh check above will return
 	            # a false positive. If this scenario is common you should put a sleep statement here.
@@ -286,6 +390,7 @@ function runsetup() {
 	            -o "BatchMode=yes" \
 	            -o "ConnectTimeout 15" \
 	            -i $PEM_PATH/$PEM_FILE \
+	            -p $REMOTE_PORT \
 	            $USER@$host echo up 2>&1)" == "up" ] ; then
 	            echo "Host $host is not responding, script exiting..."
 	            echo
@@ -293,7 +398,39 @@ function runsetup() {
 	        fi
 	    done
     fi
-	
+
+
+    # if we are using a predefined list of load generators
+    # then delete all remote crap before starting the test
+    # should help to avoid situation when we were downloading files from 
+    # the previous runs
+    if [ ! -z "$REMOTE_HOSTS" ]; then
+        for i in ${!hosts[@]} ; do
+            # had to split it in multiple lines to avoid situation when one of the
+            # RMs fails and prevents remaining commands from execution
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f *.jtl)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f *.zip)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f *.jmx)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f *.log)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f *.out)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f install.sh)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -f *.properties)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -fr $REMOTE_HOME/data)
+            ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+            rm -fr $REMOTE_HOME/cfg)
+            cLog "All remote files were deleted before copying anything and starting JMeter on: ${hosts[$i]}"
+        done
+    fi
+
+
     # scp install.sh
     if [ "$setup" = "TRUE" ] ; then
     	echo -n "copying install.sh to $instance_count server(s)..."
@@ -305,6 +442,7 @@ function runsetup() {
                 echo -e "\nscp install.sh & jmeter-ec2.properties file to ${host}\n"
                 (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
                                           -i $PEM_PATH/$PEM_FILE \
+                                          -P $REMOTE_PORT \
                                           $LOCAL_HOME/install.sh \
                                           $LOCAL_HOME/jmeter-ec2.properties \
                                           $USER@$host:$REMOTE_HOME \
@@ -313,12 +451,14 @@ function runsetup() {
                 echo -e "\nSCP custom cfg file: ${cfg} to: ${host}\n";
                 (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
                                           -i $PEM_PATH/$PEM_FILE \
+                                          -P $REMOTE_PORT \
                                           $LOCAL_HOME/${cfg} \
                                           $USER@$host:$REMOTE_HOME/jmeter-ec2.properties \
                                           && echo "done" > $LOCAL_HOME/projects/$project/$DATETIME-$host-scpinstall.out)
                 echo -e "\nSCP install.sh file to: ${host}\n";
                 (scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
                                           -i $PEM_PATH/$PEM_FILE \
+                                          -P $REMOTE_PORT \
                                           $LOCAL_HOME/install.sh \
                                           $USER@$host:$REMOTE_HOME \
                                           && echo "done" > $LOCAL_HOME/projects/$project/$DATETIME-$host-scpinstall.out)
@@ -342,7 +482,7 @@ function runsetup() {
         echo "attemptjavainstall = ${attemptjavainstall}";
 	    for host in ${hosts[@]} ; do
 	        (ssh -nq -o StrictHostKeyChecking=no \
-	            -i $PEM_PATH/$PEM_FILE $USER@$host \
+	            -i $PEM_PATH/$PEM_FILE $USER@$host -p $REMOTE_PORT \
 	            "$REMOTE_HOME/install.sh $REMOTE_HOME $attemptjavainstall $JMETER_VERSION"\
 	            > $LOCAL_HOME/projects/$project/$DATETIME-$host-install.out) &
 	    done
@@ -360,7 +500,7 @@ function runsetup() {
     fi
     
     # Create a working jmx file and edit it to adjust thread counts and filepaths (leave the original jmx intact!)
-    cp $LOCAL_HOME/projects/$project/jmx/$project.jmx $LOCAL_HOME/projects/$project/working
+    cp $LOCAL_HOME/projects/$project/$project.jmx $LOCAL_HOME/projects/$project/working
     working_jmx="$LOCAL_HOME/projects/$project/working"
     temp_jmx="$LOCAL_HOME/projects/$project/temp"
     
@@ -379,7 +519,7 @@ function runsetup() {
                 echo "You'll have to remove these from all filepaths. Sorry."
                 echo
                 echo "Script exiting"
-                exit
+                #exit
             fi
             awk '/<stringProp name=\"filename\">[^<]*<\/stringProp>/{c++;if(c=='"$i"') \
                                    {sub("filename\">'"$filepath"'<","filename\">'"$endresult"'<")}}1'  \
@@ -506,7 +646,7 @@ function runsetup() {
     echo -n "jmx files.."
     for y in "${!hosts[@]}" ; do
         (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r \
-                                      -i $PEM_PATH/$PEM_FILE \
+                                      -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
                                       $LOCAL_HOME/projects/$project/working_$y \
                                       $USER@${hosts[$y]}:$REMOTE_HOME/execute.jmx) &
     done
@@ -519,7 +659,7 @@ function runsetup() {
 	        echo -n "data dir.."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r \
-	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
 	                                          $LOCAL_HOME/projects/$project/data \
 	                                          $USER@$host:$REMOTE_HOME/) &
 	        done
@@ -532,7 +672,7 @@ function runsetup() {
 	        echo -n "jmeter.properties.."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
 	                                          $LOCAL_HOME/jmeter.properties \
 	                                          $USER@$host:$REMOTE_HOME/$JMETER_VERSION/bin/) &
 	        done
@@ -545,7 +685,7 @@ function runsetup() {
 	        echo -n "jmeter execution file..."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
 	                                          $LOCAL_HOME/jmeter $LOCAL_HOME/jmeter \
 	                                          $USER@$host:$REMOTE_HOME/$JMETER_VERSION/bin/) &
 	        done
@@ -558,7 +698,7 @@ function runsetup() {
 	        echo -n "cfg dir.."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r \
-	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
 	                                          $LOCAL_HOME/projects/$project/cfg \
 	                                          $USER@$host:$REMOTE_HOME/) &
 	        done
@@ -571,7 +711,7 @@ function runsetup() {
 	        echo -n "custom jar file(s)..."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
 	                                          $LOCAL_HOME/plugins/*.jar \
 	                                          $USER@$host:$REMOTE_HOME/$JMETER_VERSION/lib/ext/) &
 	        done
@@ -584,7 +724,7 @@ function runsetup() {
 	        echo -n "project specific jar file(s)..."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-	                                          -i $PEM_PATH/$PEM_FILE \
+	                                          -i $PEM_PATH/$PEM_FILE -P $REMOTE_PORT \
 	                                          $LOCAL_HOME/projects/$project/plugins/*.jar \
 	                                          $USER@$host:$REMOTE_HOME/$JMETER_VERSION/lib/ext/) &
 	        done
@@ -596,14 +736,14 @@ function runsetup() {
 			# upload import-results.sh
 		    echo -n "copying import-results.sh to database..."
 		    (scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-		                                  -i $DB_PEM_PATH/$DB_PEM_FILE \
+		                                  -i $DB_PEM_PATH/$DB_PEM_FILE -P $DB_SSH_PORT \
 		                                  $LOCAL_HOME/import-results.sh \
 		                                  $DB_PEM_USER@$DB_HOST:$REMOTE_HOME) &
 			wait
 		
 			# set permissions
 		    (ssh -n -o StrictHostKeyChecking=no \
-		        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST \
+		        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST -p $DB_SSH_PORT \
 				"chmod 755 $REMOTE_HOME/import-results.sh")
 			wait
 			echo -n "done...."
@@ -623,10 +763,21 @@ function runsetup() {
 	
     echo
     
-    # run jmeter test plan
-    echo "starting jmeter on:"
+    cLog "Checking for stale jmeter instances on:"
     for host in ${hosts[@]} ; do
-        echo $host
+        cLog $host
+        # check if we're running a list of pre-defined hosts to run tests
+        # if so, then make sure that there are no other instances of JMeter running
+        if [ ! -z "$REMOTE_HOSTS" ]; then
+            #echo -e "\nMaking sure that no other JMeter instance is running on ${host}... \n"
+            ( ssh -nq -o StrictHostKeyChecking=no \
+            -i $PEM_PATH/$PEM_FILE $USER@${host} -p $REMOTE_PORT \
+            pkill -f ApacheJMeter.jar && { echo "Killed stale instance of JMeter running on ${host}"; } > $LOCAL_HOME/projects/$project/kill.txt )
+            if [ -e $LOCAL_HOME/projects/$project/kill.txt ]; then
+                cWarn "$(cat $LOCAL_HOME/projects/$project/kill.txt)"
+                rm $LOCAL_HOME/projects/$project/kill.txt
+            fi
+        fi
     done
     #
     #    ssh -nq -o UserKnownHostsFile=/dev/null \
@@ -639,27 +790,21 @@ function runsetup() {
     #
     # TO DO: Temp files are a poor way to track multiple subshells - improve?
     #
+    # run jmeter test plan
+    cLog "Starting jmeter on:"
     for counter in ${!hosts[@]} ; do
-        # if no additional jmeter property file is not provided
-        # then proceed as reqular
-        if [ -z "$propfile" ] ; then 
-            ( ssh -nq -o StrictHostKeyChecking=no \
-            -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} \
-            $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
-            -t $REMOTE_HOME/execute.jmx \
-            -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
-            >> $LOCAL_HOME/projects/$project/$DATETIME-${hosts[$counter]}-jmeter.out ) &
-        else 
-        # if an additional jmeter property file was provived then
-        # add it to the cmd line
-            ( ssh -nq -o StrictHostKeyChecking=no \
-            -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} \
-            $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
-            -t $REMOTE_HOME/execute.jmx \
-            -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
-            -q $REMOTE_HOME/$propfile \
-            >> $LOCAL_HOME/projects/$project/$DATETIME-${hosts[$counter]}-jmeter.out ) &
-        fi
+        cLog ${hosts[$counter]}
+        # all none empty optional parameters (like propfile, logfile etc) 
+        # will be appended to the command
+        # if they're empty then nothing will apear in the command
+        ( ssh -nq -o StrictHostKeyChecking=no \
+        -p $REMOTE_PORT \
+        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$counter]} \
+        $REMOTE_HOME/$JMETER_VERSION/bin/jmeter.sh -n \
+        -t $REMOTE_HOME/execute.jmx \
+        -l $REMOTE_HOME/$project-$DATETIME-$counter.jtl \
+        $propfile \
+        >> $LOCAL_HOME/projects/$project/$DATETIME-${hosts[$counter]}-jmeter.out ) &
     done
     echo
     echo
@@ -695,7 +840,12 @@ function runtest() {
     i=1
     firstmodmatch="TRUE"
     res=0
-    while [ $res != $instance_count ] ; do # test not complete (count of matches for 'end of run' not equal to count of hosts running the test)
+    # changed the condition from '!=' to '-lt'
+    # due to modified grep in the last line of the while loop, that looks
+    # for either the regular "...end of run" or the "Fatal error"
+    # This modified grep can return $res greater than $instance_count
+    # which was causing script to continue
+    while [ $res -lt $instance_count ] ; do # test not complete (count of matches for 'end of run' not equal to count of hosts running the test)
         # gather results data and write to screen for each host
         #while read host ; do
         for host in ${hosts[@]} ; do
@@ -773,11 +923,45 @@ function runtest() {
         tps_overallhosts=0
         tps_recent_overallhosts=0
         errors_overallhosts=0
-        
-        # check to see if the test is complete
-        res=$(grep -c "end of run" $LOCAL_HOME/projects/$project/$DATETIME*jmeter.out | awk -F: '{ s+=$NF } END { print s }')
+
+
+        # check to see if the test is complete or the was a Fatal Error
+        # the awk command here sums up the output if multiple matches were found
+        res=$(grep -c "end of run\|Fatal error" $LOCAL_HOME/projects/$project/$DATETIME*jmeter.out | awk -F: '{ s+=$NF } END { print s }')
     done # test complete
-    
+
+
+    # check if test didn't stop in a 'fatal' way. 
+    # if it happens then there will be no "end of run" in the jmeter log 
+    # and script will be running in an infinite loop while JMeter already stopped
+    # Expected error msg: "Fatal error, could not stop test, exitting"
+    fatalErrors=$(grep -c "Fatal error" $LOCAL_HOME/projects/$project/$DATETIME*jmeter.out | awk -F: '{ s+=$NF } END { print s }')
+    if [ $fatalErrors -gt 0 ] ; then
+        cErr "JMeter unexpectedly stopped with a fatal error on one of the nodes (check all *jmeter.out files)."
+        cErr "Number of fatal errors: ${fatalErrors}"
+        # check if we're running a list of pre-defined hosts to run tests
+        # if so, then make sure that there are no other instances of JMeter running
+        if [ ! -z "$REMOTE_HOSTS" ]; then
+            cLog "Checking if JMeter and Server Agent is still running on any of the hosts..."
+            for host in ${hosts[@]} ; do
+                ( ssh -nq -o StrictHostKeyChecking=no \
+                -i $PEM_PATH/$PEM_FILE $USER@${host} -p $REMOTE_PORT \
+                pkill -f ApacheJMeter.jar && { echo "Killed JMeter running on ${host}"; } > $LOCAL_HOME/projects/$project/kill.txt )
+
+                # show on which node jmeter was killed
+                if [ -e $LOCAL_HOME/projects/$project/kill.txt ]; then
+                    cWarn "$(cat $LOCAL_HOME/projects/$project/kill.txt)"
+                    rm $LOCAL_HOME/projects/$project/kill.txt
+                fi
+
+                ( ssh -nq -o StrictHostKeyChecking=no \
+                -i $PEM_PATH/$PEM_FILE $USER@${host} -p $REMOTE_PORT \
+                "pkill -f CMDRunner.jar")
+            done
+        fi;
+    fi
+
+
     # now the test is complete calculate a final summary and write to the screen
     for host in ${hosts[@]} ; do
         # get the final summary values
@@ -820,317 +1004,642 @@ function runcleanup() {
       
     # download the results
     for i in ${!hosts[@]} ; do
-        echo -e "\nkilling server agent on ${hosts[$i]}... \n"
+        cLog "\nkilling server agent on ${hosts[$i]}... \n"
         ( ssh -nq -o StrictHostKeyChecking=no \
         -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        -p $REMOTE_PORT \
         "pkill -f CMDRunner.jar")
 
-        echo -e "downloading results from ${hosts[$i]}..."
+        cLog "downloading results from ${hosts[$i]}..."
         scp -q -C -o UserKnownHostsFile=/dev/null \
                                      -o StrictHostKeyChecking=no \
                                      -i $PEM_PATH/$PEM_FILE \
+                                     -P $REMOTE_PORT \
                                      $USER@${hosts[$i]}:$REMOTE_HOME/$project-$DATETIME-$i.jtl \
-                                     $LOCAL_HOME/projects/$project/
-        echo "$LOCAL_HOME/projects/$project/$project-$DATETIME-$i.jtl complete"
+                                     $LOCAL_HOME/projects/$project/ \
+        && {
+            cLog "Successfully downloaded $project-$DATETIME-$i.jtl to $LOCAL_HOME/projects/$project/$project-$DATETIME-$i.jtl"
+        } || {
+            cWarn "There was a problem with downloading $project-$DATETIME-$i.jtl !"
+        }
 
         # remotely zip result files
         # -j - Store just the name of a saved file (junk the path), and do  not
         #      store  directory names. By default, zip will store the full path
         #      (relative to the current directory).
+        cLog "Attempting to remotely zip all result files on ${hosts[$i]}"
         ( ssh -nq -o StrictHostKeyChecking=no \
-        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        zip -j -r $REMOTE_HOME/$DATETIME-$i-jtls.zip $REMOTE_HOME/data/*.jtl)
-        echo "Result files were remotely zipped"
+        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} -p $REMOTE_PORT \
+        zip -j -r $REMOTE_HOME/$DATETIME-$i-jtls.zip $REMOTE_HOME/data/*.jtl) \
+        && {
+            cLog "Result files were remotely zipped on ${hosts[$i]}"
+        } || {
+            cWarn "Something went wrong with remotely zipping results on ${hosts[$i]}"
+        }
 
         # download zipped results
         scp -q -C -o UserKnownHostsFile=/dev/null \
                                      -o StrictHostKeyChecking=no \
                                      -i $PEM_PATH/$PEM_FILE \
+                                     -P $REMOTE_PORT \
                                      $USER@${hosts[$i]}:$REMOTE_HOME/$DATETIME-$i-jtls.zip \
-                                     $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip
-        echo "$DATETIME-$i-jtls.zip was downloaded successfully"
+                                     $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip \
+        && {
+            cLog "$DATETIME-$i-jtls.zip was downloaded successfully from ${hosts[$i]}"
+        } || {
+            cWarn "There was a problem with downloading: $DATETIME-$i-jtls.zip from ${hosts[$i]}!"
+        }
+
 
         # deleteting all remote crap
         # had to split it in multiple lines to avoid situation when one of the
         # RMs fails and prevents remaining commands from execution
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.jtl)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.zip)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.jmx)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.log)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.out)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f install.sh)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
-        rm -f *.properties)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/*.jtl)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/*.zip)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/*.jmx)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/*.log)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/*.out)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/install.sh)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
+        rm -f $REMOTE_HOME/*.properties)
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
         rm -fr $REMOTE_HOME/data)
-        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE $USER@${hosts[$i]} \
+        ( ssh -nq -o StrictHostKeyChecking=no -i $PEM_PATH/$PEM_FILE -p $REMOTE_PORT $USER@${hosts[$i]} \
         rm -fr $REMOTE_HOME/cfg)
-        echo "All remote files were deleted"
+        cLog "All remote files were deleted"
 
     done
-    echo
     
     
     # terminate any running instances created
     if [ -z "$REMOTE_HOSTS" ]; then
 		if [ "$terminate" = "TRUE" ] ; then
-	        echo "terminating instance(s)..."
+	        cLog "terminating instance(s)..."
 			# We use attempted_instanceids here to make sure that there are no orphan instances left lying around
 	        ec2-terminate-instances --region $REGION ${attempted_instanceids[@]}
 	        echo
 		fi
     fi
     
-    
-    # process the files into one jtl results file
-    echo -n "processing results..."
+
+    # tail last 10 lines of remote JMeter logs
+    # this is helpful to determine the reason when test stops abruptly
+    if ${cfgTailRemoteJmeterLogs} ; then
+        for i in ${!hosts[@]} ; do
+            if [ -e ${LOCAL_HOME}/projects/${project}/${DATETIME}-${hosts[$i]}-jmeter.out ] ; then
+                cLog "/--------------------------------------------------------"
+                cLog "-"
+                cLog "-"
+                cLog "- Tailing last 10 lines of remote JMeter log: ${LOCAL_HOME}/projects/${project}/${DATETIME}-${hosts[$i]}-jmeter.out"
+                cLog "-"
+                cLog "-"
+                # set nice color for the output :)
+                tput setaf 6; tput bold;
+                tail -n10 ${LOCAL_HOME}/projects/${project}/${DATETIME}-${hosts[$i]}-jmeter.out
+                # revert colors to default
+                tput setaf default; tput sgr0; 
+                cLog "-"
+                cLog "-"
+                cLog "/--------------------------------------------------------"
+            fi
+        done
+    else
+        cWarn "Tailing last 10 lines of remote JMeter logs is disabled!"
+    fi
+
+    ###########################################################################
+    # Process the result files into one jtl results file.
+    # This combined result file is used to calculate the test run time and
+    # for injecting results into a database
+    #
+    # Steps:
+    # 0 - concatenate all result files into one
+    # 1 - sort the file
+    # 2 - insert new TESTID
+    # 3 - Remove blank lines
+    # 4 - Remove any lines containing "0,0,Error:"
+    # 5 - Calclulate test duration
+    # 6 - mark test as complete in database
+    #
+    #
+    cLog "Processing result files to calculate test duration etc..."
     for (( i=0; i<$instance_count; i++ )) ; do
         cat $LOCAL_HOME/projects/$project/$project-$DATETIME-$i.jtl >> $LOCAL_HOME/projects/$project/$project-$DATETIME-grouped.jtl
         rm $LOCAL_HOME/projects/$project/$project-$DATETIME-$i.jtl # removes the individual results files (from each host) - might be useful to some people to keep these files?
     done	
-	
-	# Srt File
+	#
+	# Sort File
     sort -u $LOCAL_HOME/projects/$project/$project-$DATETIME-grouped.jtl >> $LOCAL_HOME/projects/$project/$project-$DATETIME-sorted.jtl
-
+    #
     # Insert TESTID
     if [ ! -z "$DB_HOST" ] ; then
         awk -v v_testid="$newTestid," '{print v_testid,$0}' $LOCAL_HOME/projects/$project/$project-$DATETIME-sorted.jtl >> $LOCAL_HOME/projects/$project/$project-$DATETIME-appended.jtl
-        awk -v v_testid="$newTestid," '{print v_testid,$0}' $LOCAL_HOME/projects/$project/hibuvoice-perf-summary-report-sorted.jtl >> $LOCAL_HOME/projects/$project/hibuvoice-perf-summary-report-appended.jtl
 	else
         mv $LOCAL_HOME/projects/$project/$project-$DATETIME-sorted.jtl $LOCAL_HOME/projects/$project/$project-$DATETIME-appended.jtl
     fi
-    
+    #
 	# Remove blank lines
 	sed '/^$/d' $LOCAL_HOME/projects/$project/$project-$DATETIME-appended.jtl >> $LOCAL_HOME/projects/$project/$project-$DATETIME-noblanks.jtl
-
-    # Split the thread label into two columns
-    #sed 's/ \([0-9][0-9]*-[0-9][0-9]*,\)/,\1/' \
-    #                  $LOCAL_HOME/$project/$project-$DATETIME-sorted.jtl >> \
-    #                  $LOCAL_HOME/$project/$project-$DATETIME-complete.jtl
-
+    #
 	# Remove any lines containing "0,0,Error:" - which seems to be an intermittant bug in JM where the getTimestamp call fails with a nullpointer
-	sed '/^0,0,Error:/d' $LOCAL_HOME/projects/$project/$project-$DATETIME-noblanks.jtl >> $LOCAL_HOME/projects/$project/$project-$DATETIME-withDupes.jtl
-
-
-    ######----------------------------------------------------------------------
-    ##      Process downloaded compressed results
-    ######----------------------------------------------------------------------
-    # create folder for merged JTLs
-    mkdir $LOCAL_HOME/projects/$project/jtls
-
-    # extract all results
-    for (( i=0; i<$instance_count; i++ )) ; do
-        unzip $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip -d $LOCAL_HOME/projects/$project/$i
-    done
-
-    # declare all types of reports that we want to generate    
-    declare -a results=('ResponseTimesOverTime' 'LatenciesOverTime' 'ResponseTimesDistribution' 'ResponseTimesPercentiles' 'BytesThroughputOverTime' 'HitsPerSecond' 'ResponseCodesPerSecond' 'TimesVsThreads' 'TransactionsPerSecond' 'ThroughputVsThreads' 'ThreadsStateOverTime');
-    declare -a graphsWithoutRelTimeParam=("ResponseTimesDistribution" "ResponseTimesPercentiles" "TimesVsThreads" "ThroughputVsThreads");
-
-    # merge all the files
-    for (( i=0; i<$instance_count; i++ )) ; do
-        # I'm merging only the "result" files, because all of the jp@gc listeners are generating the same files
-        cat $LOCAL_HOME/projects/$project/$i/result.jtl >> $LOCAL_HOME/projects/$project/${DATETIME}-results-grouped.jtl
-    done
-  
-    # if folder for graphs doesn't exist, create it
-    if [ ! -d "$LOCAL_HOME/projects/$project/results/${DATETIME}" ] ; then
-        mkdir -p $LOCAL_HOME/projects/$project/results/${DATETIME}
-    fi
-
-	#***************************************************************************
-    # copy bootstrap folder to report folder
-    # add datatime to the report file that will point at the folder with graphs
-    # ps. that's why header filer is split in three parts
-    #***************************************************************************
-    cp -R resources/bootstrap $LOCAL_HOME/projects/$project/results/${DATETIME}
-    echo -n `cat $LOCAL_HOME/resources/reportHeader-part1.txt` > $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-    echo -n ${DATETIME} >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-    echo -n `cat $LOCAL_HOME/resources/reportHeader-part2.txt` >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-    echo -n ${DATETIME} >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-    echo -n `cat $LOCAL_HOME/resources/reportHeader-part3.txt` >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-
-
-	#***************************************************************************
-    # generate all the graphs
-	#***************************************************************************
-    if  [ -d $LOCAL_HOME/${JMETER_VERSION} ] && [[ -n $(ls $LOCAL_HOME/${JMETER_VERSION}/) ]] ; then
-        # process  grouped "results" file
-        echo "Sorting ${DATETIME}-results-grouped.jtl > ${DATETIME}-results-sorted.jtl"
-        sort -u $LOCAL_HOME/projects/$project/${DATETIME}-results-grouped.jtl > $LOCAL_HOME/projects/$project/${DATETIME}-results-sorted.jtl
-
-        echo "Removing blank lines from ${DATETIME}-results-sorted.jtl > ${DATETIME}-results-noblanks.jtl"
-        sed '/^$/d' $LOCAL_HOME/projects/$project/${DATETIME}-results-sorted.jtl  > $LOCAL_HOME/projects/$project/${DATETIME}-results-noblanks.jtl
-
-        echo "Removing lines with some intermittant errors from ${DATETIME}-results-noblanks.jtl > ${DATETIME}-results-sorted.jtl"
-        sed '/^0,0,Error:/d' $LOCAL_HOME/projects/$project/${DATETIME}-results-noblanks.jtl  > $LOCAL_HOME/projects/$project/${DATETIME}-results-noErrors.jtl
-
-        echo "Moving last line to the beggining from ${DATETIME}-results-noErrors.jtl > ${DATETIME}-results-complete.jtl"
-        sed '1h;1d;$!H;$!d;G' $LOCAL_HOME/projects/$project/${DATETIME}-results-noErrors.jtl  > $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl
-
-        # counter to define which carousel item is active
-        COUNTER=0;
-        # generate all required graphs from the grouped results file
-        for res in "${results[@]}"; do
-            # don't add --relative-times parameter to some graphs
-            insertRelativeTimeParam="--relative-times no"
-            case "${graphsWithoutRelTimeParam[@]}" in *"${res}"*)
-                insertRelativeTimeParam="";;
-            esac;
-            
-            echo "Generating '${res}' graph from the '${DATETIME}-results-complete.jtl' file"
-            java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter ${insertRelativeTimeParam} --generate-png $LOCAL_HOME/projects/$project/results/${DATETIME}/${res}.png --input-jtl $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl --plugin-type ${res} --width 1920 --height 1200
-            
-
-            # set first graph as active
-            if [ $COUNTER -eq 0 ]; then
-                active="active "
-                # increment counter so that we're no setting more items as active
-                let COUNTER=COUNTER+1
-            else
-                active=""
-            fi
-
-            # add link and graph image to the report
-           echo -e "
-                <div class='${active}item'>
-                    <h3><a href='#Define${res}'>${res}</a></h3> 
-                    <img class='img-polaroid' src='${DATETIME}/${res}.png' width=1920 height=1200>
-                </div>
-           " >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-
-        done
-    
-        
-        # process PerfMon result files for both remote nodes (SUT - System Under Test)
-        # and also from "local" jmeter nodes to monitor their performance while
-        # generating the traffic
-        for (( i=0; i<$instance_count; i++ )) ; do
-
-            # check if PerfMon-remote.jtl is available
-            if [ -e $LOCAL_HOME/projects/$project/${i}/PerfMon-remote.jtl ]; then
-                echo "Generating a SUT 'PerfMon' graph from the node '${i}' from '${i}/PerfMon-remote.jtl' file"
-                java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png $LOCAL_HOME/projects/$project/results/${DATETIME}/PerfMon-node${i}-remote.png --input-jtl $LOCAL_HOME/projects/$project/${i}/PerfMon-remote.jtl --plugin-type PerfMon --width 1920 --height 1200
-                echo -e "
-                <div class='item'>
-                    <h3><a href='#DefinePerfMon'>Performance graph of the System Unded Test. Data collected from the jmeter node: ${i}</a></h3> 
-                    <img class='img-polaroid' src='${DATETIME}/PerfMon-node${i}-remote.png' width=1920 height=1200>
-                </div>
-                " >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-            else
-                cWarn "Node ${i} didn't return a PerfMon-remote.jtl file!!!"
-                echo -e "
-                <div class='item'>
-                    <h2><a class='text-error' href='#DefinePerfMon'>Performance graph for the SUT is MISSING</a></h2>
-                    <div class='emptyCarouselItem'>
-                        <blockquote class='text-error'>because jmeter-ec2 node no: ${i} did not return a PerfMon-remote.jtl file!!!</blockquote>
-                    </div>
-                </div>
-                " >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-            fi;
-
-            # check if PerfMon-local.jtl is available
-            if [ -e $LOCAL_HOME/projects/$project/${i}/PerfMon-local.jtl ]; then
-                echo "Generating a 'PerfMon' graph for the jmeter node '${i}' from '${i}/PerfMon-local.jtl' file"
-                java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter --relative-times no --generate-png $LOCAL_HOME/projects/$project/results/${DATETIME}/PerfMon-node${i}-local.png --input-jtl $LOCAL_HOME/projects/$project/${i}/PerfMon-local.jtl --plugin-type PerfMon --width 1920 --height 1200
-                echo -e "
-                <div class='item'>
-                    <h3><a href='#DefinePerfMon'>Performance graph of the jmeter node: ${i}</a></h3> 
-                    <img src='${DATETIME}/PerfMon-node${i}-local.png' width=1920 height=1200 >
-                </div>
-                " >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-            else
-                cWarn "Node ${i} didn't return a Perf-Mon-local.jtl file!!!"
-                echo -e "
-                <div class='item'>
-                    <h2><a class='text-error' href='#DefinePerfMon'>Performance graph of the jmeter-ec2 node is MISSING</a></h2>
-                    <div class='emptyCarouselItem'>
-                        <blockquote class='text-error'>because jmeter-ec2 node no: ${i} did not return a PerfMon-local.jtl file!!!</blockquote>
-                    </div>
-                </div>
-                " >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-            fi;
-
-        done
-
-        # add carousel's end to the report        
-        cat $LOCAL_HOME/resources/reportCarouselEnd.txt >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-
-
-        # process single result files
-        # apart from PerfMon results (see loop above)
-        for (( i=0; i<$instance_count; i++ )) ; do
-            for res in "${results[@]}"; do
-                # don't add --relative-times parameter to some graphs
-                insertRelativeTimeParam="--relative-times no"
-                case "${graphsWithoutRelTimeParam[@]}" in *"${res}"*)
-                    insertRelativeTimeParam="";;
-                esac;
-                echo "Generating '${res}' graph from node '${i}' from '${i}/${res}.jtl' file"
-                java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --tool Reporter ${insertRelativeTimeParam} --generate-png $LOCAL_HOME/projects/$project/results/${DATETIME}/node${i}-${res}.png --input-jtl $LOCAL_HOME/projects/$project/${i}/result.jtl --plugin-type ${res} --width 1920 --height 1200
-
-                echo -e "\t\tNode: ${i}: <a href='${DATETIME}/node${i}-${res}.png' target='_blank'>${res}</a><br/>" >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-            done
-        done
-
-    # end of IF checking whether JMeter is installed
-    else
-        echo "JMeter is NOT installed, please run ./download-jmeter.sh"
-    fi;
-
-
-	#***************************************************************************
-    # add closing tags to the report
-	#***************************************************************************
-    cat $LOCAL_HOME/resources/reportFooter.txt >> $LOCAL_HOME/projects/$project/results/${DATETIME}-report.html
-
-
-
-	#***************************************************************************
+	sed '/^0,0,Error:/d' $LOCAL_HOME/projects/$project/$project-$DATETIME-noblanks.jtl >> $LOCAL_HOME/projects/$project/$project-$DATETIME-complete.jtl
+    #
 	# Calclulate test duration
-	#***************************************************************************
-	start_time=$(head -1 $LOCAL_HOME/projects/$project/$project-$DATETIME-withDupes.jtl | cut -d',' -f2)
-	end_time=$(tail -1 $LOCAL_HOME/projects/$project/$project-$DATETIME-withDupes.jtl | cut -d',' -f2)
-	duration=$(echo "$end_time-$start_time" | bc)
+	start_time=$(head -1 $LOCAL_HOME/projects/$project/$project-$DATETIME-complete.jtl | cut -d',' -f1)
+	end_time=$(tail -1 $LOCAL_HOME/projects/$project/$project-$DATETIME-complete.jtl | cut -d',' -f1)
+    # because jmeter is using a milisecond timestamp we have to divide
+    # the timedifference by 1000
+    duration=$(echo "($end_time-$start_time)/1000" | bc)
+    #
 	if [ ! $duration > 0 ] ; then
 		duration=0;
-	fi	
-	
+	fi
+    #
+    msDatetimeToDate start_date ${start_time}
+    msDatetimeToDate end_date ${end_time}
+    cLog ""
+    cLog "Test was started: ${start_date}"
+    cLog "Test ended: ${end_date}"
+    cLog "Test duration: ${duration} seconds"
+    cLog ""
+	#
 	if [ ! -z "$DB_HOST" ] ; then
 		# mark test as complete in database
 		updateTest 2 "$newTestid" "$duration"
 	fi
+    #
+    # end of proccessing jtl result files
+    ############################################################################
 	
 
-	#***************************************************************************
-    # Tidy up
-	#***************************************************************************
-    # delete all tmp folder were we inflated al the zipped files with results
-    for (( i=0; i<$instance_count; i++ )) ; do
-        echo "Removing folder: $LOCAL_HOME/projects/$project/$i"
-        rm -fr $LOCAL_HOME/projects/$project/$i
-    done
+    ############################################################################
+    # Process downloaded compressed result files.
+    # In next few steps we're combinining all result files downloaded 
+    # from the load generators to create a single result file, which will be
+    # used to generate graphs using CMDRunner.jar 
+    # http://jmeter-plugins.org/wiki/JMeterPluginsCMD/
+    # 
+    #
+    # Steps:
+    # 0 - create temporary "jtls" folder for unpacked files from each result file
+    # 1 - extract all downloaded result files
+    # 2 - merge all the result files
+    # 3 - sort the result file
+    # 4 - remove blank lines
+    # 5 - Remove lines with some intermittant errors
+    # 6 - Move last line to the beggining (it's due to the sort from step 3)
+    #
+    if ${cfgCreateMergedResultFile} ; then
+        cLog "Creating merged result file..."
+        #
+        # create folder for merged JTLs
+        mkdir $LOCAL_HOME/projects/$project/jtls
+        #
+        cLog "Extracting zipped result files"
+        for (( i=0; i<$instance_count; i++ )) ; do
+            #unzip $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip -d $LOCAL_HOME/projects/$project/$i
+            # retry unzippin results file if it takes too long
+            CMD="unzip $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip -d $LOCAL_HOME/projects/$project/$i"
+            repeatTillSucceedWithExecTimeout 5 60 "${CMD}" \
+                || {
+                    cErr "Failed to unzip $LOCAL_HOME/projects/$project/$DATETIME-$i-jtls.zip !!!!!!!!!!!!1"
+                }
+        done
+        #
+        cLog "Merging all the result files"
+        for (( i=0; i<$instance_count; i++ )) ; do
+            # I'm merging only the "result" files, because all of the jp@gc listeners are generating the same files
+            cat $LOCAL_HOME/projects/$project/$i/result.jtl >> $LOCAL_HOME/projects/$project/${DATETIME}-results-grouped.jtl
+        done
+        #
+        cLog "Processing grouped result file"
+        cLog "Sorting ${DATETIME}-results-grouped.jtl > ${DATETIME}-results-sorted.jtl"
+        sort -u $LOCAL_HOME/projects/$project/${DATETIME}-results-grouped.jtl > $LOCAL_HOME/projects/$project/${DATETIME}-results-sorted.jtl
+        #
+        cLog "Removing blank lines from ${DATETIME}-results-sorted.jtl > ${DATETIME}-results-noblanks.jtl"
+        sed '/^$/d' $LOCAL_HOME/projects/$project/${DATETIME}-results-sorted.jtl  > $LOCAL_HOME/projects/$project/${DATETIME}-results-noblanks.jtl
+        #
+        cLog "Removing lines with some intermittant errors from ${DATETIME}-results-noblanks.jtl > ${DATETIME}-results-sorted.jtl"
+        sed '/^0,0,Error:/d' $LOCAL_HOME/projects/$project/${DATETIME}-results-noblanks.jtl  > $LOCAL_HOME/projects/$project/${DATETIME}-results-noErrors.jtl
+        #
+        cLog "Moving last line to the beggining from ${DATETIME}-results-noErrors.jtl > ${DATETIME}-results-complete.jtl"
+        sed '1h;1d;$!H;$!d;G' $LOCAL_HOME/projects/$project/${DATETIME}-results-noErrors.jtl  > $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl \
+            && {
+                cLog "Merged result file was successfully created"
+            }
+    else
+        cWarn "Creating merged result file is disabled!"
+    fi
+    #
+    # end of processing result files
+    #
+    ############################################################################
 
-    # move combined results file to the results folder
-    # this file will be processed by the Jenkins Performance plugin
-    #mv $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl $LOCAL_HOME/projects/$project/results/
+   
+    ############################################################################
+    # Prepare a merged XML result file that will be processed by the 
+    # Jenkins Performance Plugin. For merging we're going to use mergex tool:
+    # https://code.google.com/p/mergex/ by bbeirnaert
+    #
+    # Steps:
+    # 0 - check if jenkins.jtl file exists in the node 0 folder
+    # 1 - create merged folder
+    # 2 - remove first and last 2 lines and save output to merged dir
+    # 3 - merge'em into one XML file using cat
+    # 4 - create final result file by adding XML tags and appending merged.jtl
+    # 5 - delete merged folder
+    if ${cfgCreateMergedFileForJenkinsPerfPlugin} ; then
+        if [ -e $LOCAL_HOME/projects/$project/0/jenkins.jtl ]; then
+            mkdir $LOCAL_HOME/projects/$project/merged
+            for (( i=0; i<$instance_count; i++ )) ; do
+                # remove first two lines and last 2 lines
+                tail -n +3 $LOCAL_HOME/projects/$project/$i/jenkins.jtl | head -n -2 > $LOCAL_HOME/projects/$project/merged/jenkins-${i}.jtl
+                # append '>>' file to merged.jtl file
+                cat $LOCAL_HOME/projects/$project/merged/jenkins-${i}.jtl >> $LOCAL_HOME/projects/$project/merged/merged.jtl
+            done
+            cLog "All JTL files were merged successfully into: $LOCAL_HOME/projects/$project/merged/merged.jtl"
+            # create final result file and add opening XML tags
+            echo '<?xml version="1.0" encoding="UTF-8"?><testResults version="1.2">' > $LOCAL_HOME/projects/$project/results/${cfgJenkinsPerfPluginResultFilename}
+            # append merged JTLs files
+            cat $LOCAL_HOME/projects/$project/merged/merged.jtl >> $LOCAL_HOME/projects/$project/results/${cfgJenkinsPerfPluginResultFilename}
+            # append closing tag
+            echo '</testResults>' >> $LOCAL_HOME/projects/$project/results/${cfgJenkinsPerfPluginResultFilename}
+            cLog "Final result file for Jenkins Performance Plugin was saved to: $LOCAL_HOME/projects/$project/results/${cfgJenkinsPerfPluginResultFilename}"
+            rm -fr $LOCAL_HOME/projects/$project/merged
+        else
+            cWarn "Couldn't find jenkins.jtl file in the $LOCAL_HOME/projects/$project/0/ folder!!!!"
+        fi;
+    else
+        cWarn "Merging all jenkins.xml files is disabled!"
+    fi;
+    #
+    # end of creating merged result file for jenkins performance plugin
+    ############################################################################
+  
 
-    # remove jtls folder with temporary grouped files used for generating graphs
-    rm -fr $LOCAL_HOME/projects/$project/jtls/
+    ############################################################################
+    # tar+bzip2 or zip separate result file into a single archive that will be
+    # stored in the results folder as a part of a Jenkins build artifact
+    #
+    # Steps:
+    # 0 - check if cfgSaveCompressedResults flag is true
+    # 1 - depending which compression tool is available (bzip2 or zip) use it to archive all the result files of your interest
+    #
+    if ${cfgSaveCompressedResults} ; then
+        if `isInstalled "bzip2"` ; then
+            cLog "BZipping separate result files and remote Jmeter log files into a single archive ${LOCAL_HOME}/projects/${project}/results/results.tar.bz2"
+            cd ${LOCAL_HOME}/projects/$project \
+                && {
+                    time tar cvfj ./results/results.tar.bz2 $DATETIME-*.zip $DATETIME*.out $project-$DATETIME-complete.jtl
+                    cd ${LOCAL_HOME}
+                } || {
+                    cWarn "Something went wrong when compressing result files!"
+                }
+            cd ${LOCAL_HOME}
+        else 
+            cLog "Zipping separate result files and remote JMeter log files into a single archive ${LOCAL_HOME}/projects/${project}/results/results.zip"
+            cd ${LOCAL_HOME}/projects/$project \
+                && {
+                    time zip -9 -j -r results/results.zip $DATETIME-*.zip $DATETIME*.out $project-$DATETIME-complete.jtl
+                    cd ${LOCAL_HOME}
+                } || {
+                    cWarn "Something went wrong when compressing result files!"
+                }
+            cd ${LOCAL_HOME}
+        fi
+    else
+        cWarn "Saving compressed result file is disabled!"
+    fi
+    #
+    #
+    ############################################################################
 
-    # create results folder in case it's not there
-    if [ ! -d "$LOCAL_HOME/projects/$project/results/" ]; then
-        mkdir -p $LOCAL_HOME/projects/$project/results/
+
+
+
+    ########################################################################
+    # Generates CSV files representing aggregate response time percentiles reports
+    ## Such file can be then easily processed by Jenkins' Plot Plugin
+    ########################################################################
+    if ${cfgGenerateAggregatedResponseTimePercentilesReports} ; then
+        cLog "Generating CSV Response Times Percentiles report..."
+        CMD="java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --loglevel WARN --tool Reporter --generate-csv $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp --input-jtl $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl --plugin-type ResponseTimesPercentiles"
+        repeatTillSucceedWithExecTimeout 5 ${cfgGraphGenerationTimeout} "${CMD}" \
+        && {
+            cLog "Extracting values for 50th,60th,70th,80th,90th & 95th percentiles..."
+            head -n 1 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp > ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+            grep ^50.0 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp >> ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+            grep ^60.0 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp >> ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+            grep ^70.0 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp >> ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+            grep ^80.0 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp >> ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+            grep ^90.0 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp >> ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+            grep ^95.0 $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp >> ${cfgAggregatedResponseTimePercentilesReportsInputFile} ;
+
+            # process the file from previous step
+            cLog "Generating aggregate response time percentiles for each endpoint from : ${cfgAggregatedResponseTimePercentilesReportsInputFile}" ;
+            cLog "Transposing columns and values from: ${cfgAggregatedResponseTimePercentilesReportsInputFile} into: ${cfgAggregatedResponseTimePercentilesReportsOuputFolder}" ;
+
+            #${cfgPython} $LOCAL_HOME/genAggregateRepsTimesPercentilesReports.py -i ${cfgAggregatedResponseTimePercentilesReportsInputFile} -o ${cfgAggregatedResponseTimePercentilesReportsOuputFolder} -d \
+            CMD="${cfgPython} $LOCAL_HOME/genAggregateRepsTimesPercentilesReports.py -i ${cfgAggregatedResponseTimePercentilesReportsInputFile} -o ${cfgAggregatedResponseTimePercentilesReportsOuputFolder} -d"
+            repeatTillSucceedWithExecTimeout 5 10 "${CMD}" \
+                && {
+                    cLog "Response Times Percentiles Report was successfully transposed and saved in: ${cfgAggregatedResponseTimePercentilesReportsOuputFolder}"
+                } || {
+                    cLog "Something went wrong when transposing ${cfgAggregatedResponseTimePercentilesReportsInputFile}!!!!!"
+                }
+
+            # delete tmp file
+            rm $LOCAL_HOME/projects/$project/aggregatePercentiles.tmp ;
+        } || {
+            cErr "Failed to create an aggregate response time percentiles CSV report!" ;
+        }
+    else
+        cWarn "Generating Aggregate Response Times Percentile CSV report is disabled!"
     fi;
 
-    echo "Removing all tmp merged files"
-    rm $LOCAL_HOME/projects/$project/*.jtl
+
+    ########################################################################
+    # Generate aggregated CSV report
+    # which can be then easily used by Jenkins' Plot plugin to generate
+    # a perfromance trend graph.
+    # For more details please refer to:
+    # http://jmeter-plugins.org/wiki/JMeterPluginsCMD/#Plugin-Type-Classes
+    # http://jmeter.apache.org/usermanual/component_reference.html#Aggregate_Report
+    ########################################################################
+    if ${cfgCreateAggregateCSVReport} ; then
+        cLog "Generating an Aggregate CSV report from '${DATETIME}-results-complete.jtl' file"
+        CMD="java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --loglevel WARN --tool Reporter --generate-csv $LOCAL_HOME/projects/$project/aggregate.tmp --input-jtl $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl --plugin-type AggregateReport"
+        repeatTillSucceedWithExecTimeout 5 ${cfgGraphGenerationTimeout} "${CMD}" \
+        && { 
+            # Removing unwanted "aggregate_report_" field name prefix from the 
+            # Aggregate Report generated by the CMDRunner.jar
+            cLog "Fixing field names in the Aggregated report..."
+            sed 's/aggregate_report_//g' $LOCAL_HOME/projects/$project/aggregate.tmp > $LOCAL_HOME/projects/$project/results/aggregate.csv
+            cLog "Current aggregate CSV report: $LOCAL_HOME/projects/$project/results/aggregate.csv"
+            # set nice color for the output :)
+            tput setaf 6; tput bold;
+            cat $LOCAL_HOME/projects/$project/results/aggregate.csv
+            # revert colors to default
+            tput setaf default; tput sgr0; 
+            rm $LOCAL_HOME/projects/$project/aggregate.tmp
+        } || { 
+            cErr "Failed to create an aggregate CSV report!" 
+        }
+    else
+        cWarn "Generating aggregate CSV report is disabled!"
+    fi;
+   
+
+	############################################################################
+    # Generate HTML repot with all the PNG graphs
+    # 
+    #
+    # Steps:
+    # 
+    # 0 - 
+    # 1 - 
+    # 2 - 
+    # 3 - 
+    # 4 - 
+    # 5 - 
+    # 6 - 
+    # 7 - 
+    # 8 - 
+    #
+    # declare all types of reports that we want to generate    
+    declare -a results=('ResponseTimesOverTime' 'LatenciesOverTime' 'ResponseTimesDistribution' 'ResponseTimesPercentiles' 'BytesThroughputOverTime' 'HitsPerSecond' 'ResponseCodesPerSecond' 'TimesVsThreads' 'TransactionsPerSecond' 'ThroughputVsThreads' 'ThreadsStateOverTime');
+    declare -a graphsWithoutRelTimeParam=("ResponseTimesDistribution" "ResponseTimesPercentiles" "TimesVsThreads" "ThroughputVsThreads");
+    #
+    #
+    # 
+    if ! ${cfgCreateHTMLReport} ; then
+        cWarn "Generating HTML report is disabled"
+    else
+        cLog "Generating HTML Report"
+        if  [ -d $LOCAL_HOME/${JMETER_VERSION} ] && [[ -n $(ls $LOCAL_HOME/${JMETER_VERSION}/) ]] ; then
+         
+            # if folder for graphs doesn't exist, create it
+            if [ ! -d "$LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}" ] ; then
+                mkdir -p $LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}
+            fi
+
+            #***************************************************************************
+            # copy bootstrap folder to report folder
+            # replace all template keywords with variable
+            #***************************************************************************
+            cp -R $LOCAL_HOME/resources/bootstrap $LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}
+            cat $LOCAL_HOME/resources/reportHeader.txt \
+            | sed "s/*WIDTH\*/${cfgReportGraphWidth}/g" \
+            | sed "s/*HEIGHT\*/${cfgReportGraphHeight}/g" \
+            | sed "s/*FOLDER\*/${cfgHtmlReportGraphsDir}/g" \
+            | sed "s/*TITLE\*/JMeter report for project: ${project} generated on: ${DATETIME}/g" \
+            > $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+
+            # counter to define which carousel item is active
+            # because slide index in the carousel starts from 0
+            # and we want to mark only first slide as active 
+            # we have to start the counter from "-1"
+            # so that the slide numbers displayer before the name of the slide
+            # are correct!!!!
+            COUNTER=-1;
+            # store initial graph resolution
+            local INITIAL_width="${cfgReportGraphWidth}";
+            local INITIAL_height="${cfgReportGraphHeight}";
+            # generate all required graphs from the grouped results file
+            for res in "${results[@]}"; do
+                cfgReportGraphWidth=${INITIAL_width}; # just to make sure that values weren't overwritten
+                cfgReportGraphHeight=${INITIAL_height};
+                # don't add --relative-times parameter to some graphs
+                insertRelativeTimeParam="--relative-times no"
+                case "${graphsWithoutRelTimeParam[@]}" in *"${res}"*)
+                    insertRelativeTimeParam=""
+                    cfgReportGraphWidth=${cfgReportGraphWidthForGraphsWithRelativeTime}
+                    cfgReportGraphHeight=${cfgReportGraphHeightForGraphsWithRelativeTime}
+                    ;;
+                esac;
+
+                # set first graph as active
+                if [ $COUNTER -eq -1 ]; then
+                    active="active "
+                    # increment counter so that we're no setting more items as active
+                    let COUNTER=COUNTER+1
+                else
+                    active=""
+                    # increment counter to add it to the graph name.
+                    # can be used as the carousel index indicatr
+                    let COUNTER=COUNTER+1
+                fi
+
+                cLog "Generating '${res}' graph from the '${DATETIME}-results-complete.jtl' file"
+                CMD="java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --loglevel WARN --tool Reporter ${insertRelativeTimeParam} --generate-png $LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}/${res}.png --input-jtl $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl --plugin-type ${res} --width ${cfgReportGraphWidth} --height ${cfgReportGraphHeight}"
+                repeatTillSucceedWithExecTimeout 5 ${cfgGraphGenerationTimeout} "${CMD}" \
+                && {
+                    # add link and graph image to the report
+                    echo -e "
+                    <div class='${active}item'>
+                        <h3><a href='#${COUNTER}'>#${COUNTER}</a> <a href='#Define${res}'>${res}</a></h3> 
+                        <img class='img-polaroid' src='${cfgHtmlReportGraphsDir}/${res}.png' width=${cfgReportGraphWidth} height=${cfgReportGraphHeight}>
+                    </div>
+                    " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename} ;
+                } || {
+                    cErr "Failed to generate ${res} graph! It will be replaced by a placeholder image!" ;
+                    echo -e "
+                    <div class='${active}item'>
+                        <h3><a href='#${COUNTER}'>#${COUNTER}</a> <a href='#Define${res}'>${res}</a></h3> 
+                        <img class='img-polaroid' src='${cfgHtmlReportGraphsDir}/bootstrap/img/failedToGenerateGraph.png' width=${cfgReportGraphWidth} height=${cfgReportGraphHeight}>
+                    </div>
+                    " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename} ;
+                }
+            done
+
+
+            
+            # process PerfMon result files for both remote nodes (SUT - System Under Test)
+            # and also from "local" jmeter nodes to monitor their performance while
+            # generating the traffic
+            for (( i=0; i<$instance_count; i++ )) ; do
+
+                # check if PerfMon-remote.jtl is available
+                if [ -e $LOCAL_HOME/projects/$project/${i}/PerfMon-remote.jtl ]; then
+                    # increment counter to add it to the graph name.
+                    # can be used as the carousel index indicatr
+                    let COUNTER=COUNTER+1
+                    cLog "Generating a SUT 'PerfMon' graph from the node '${i}' from '${i}/PerfMon-remote.jtl' file"
+                    CMD="java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --loglevel WARN --tool Reporter --relative-times no --generate-png $LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}/PerfMon-node${i}-remote.png --input-jtl $LOCAL_HOME/projects/$project/${i}/PerfMon-remote.jtl --plugin-type PerfMon --width ${cfgReportGraphWidth} --height ${cfgReportGraphHeight}"
+                    repeatTillSucceedWithExecTimeout 5 ${cfgGraphGenerationTimeout} "${CMD}" \
+                    && {
+                        echo -e "
+                        <div class='item'>
+                            <h3><a href='#${COUNTER}'>#${COUNTER}</a> <a href='#DefinePerfMon'>Performance graph of the System Unded Test. Data collected from the jmeter node: ${i}</a></h3> 
+                            <img class='img-polaroid' src='${cfgHtmlReportGraphsDir}/PerfMon-node${i}-remote.png' width=${cfgReportGraphWidth} height=${cfgReportGraphHeight}>
+                        </div>
+                        " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename} ;
+                    } || {
+                        cErr "Failed to generate PerfMon graph! It will be replaced by a placeholder image!" ;
+                        echo -e "
+                        <div class='item'>
+                            <h3><a href='#${COUNTER}'>#${COUNTER}</a> <a href='#DefinePerfMon'>FAILED TO GENERATE REMOTE PERF.MON GRAPH !!! </a></h3> 
+                            <img class='img-polaroid' src='${cfgHtmlReportGraphsDir}/bootstrap/img/failedToGenerateGraph.png' width=${cfgReportGraphWidth} height=${cfgReportGraphHeight}>
+                        </div>
+                        " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename} ;
+                    }
+                else
+                    # increment counter to add it to the graph name.
+                    # can be used as the carousel index indicatr
+                    let COUNTER=COUNTER+1
+                    cWarn "Node ${i} didn't return a PerfMon-remote.jtl file!!!"
+                    echo -e "
+                    <div class='item'>
+                        <h2><a href='#${COUNTER}'>#${COUNTER}</a> <a class='text-error' href='#DefinePerfMon'>Performance graph for the SUT is MISSING</a></h2>
+                        <div class='emptyCarouselItem'>
+                            <blockquote class='text-error'>because jmeter-ec2 node no: ${i} did not return a PerfMon-remote.jtl file!!!</blockquote>
+                        </div>
+                    </div>
+                    " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+                fi;
+
+                # check if PerfMon-local.jtl is available
+                if [ -e $LOCAL_HOME/projects/$project/${i}/PerfMon-local.jtl ]; then
+                    # increment counter to add it to the graph name.
+                    # can be used as the carousel index indicatr
+                    let COUNTER=COUNTER+1
+                    cLog "Generating a 'PerfMon' graph for the jmeter node '${i}' from '${i}/PerfMon-local.jtl' file"
+                    CMD="java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --loglevel WARN --tool Reporter --relative-times no --generate-png $LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}/PerfMon-node${i}-local.png --input-jtl $LOCAL_HOME/projects/$project/${i}/PerfMon-local.jtl --plugin-type PerfMon --width ${cfgReportGraphWidth} --height ${cfgReportGraphHeight}"
+                    repeatTillSucceedWithExecTimeout 5 ${cfgGraphGenerationTimeout} "${CMD}" \
+                    && {
+                        echo -e "
+                        <div class='item'>
+                            <h3><a href='#${COUNTER}'>#${COUNTER}</a> <a href='#DefinePerfMon'>Performance graph of the jmeter node: ${i}</a></h3> 
+                            <img src='${cfgHtmlReportGraphsDir}/PerfMon-node${i}-local.png' width=${cfgReportGraphWidth} height=${cfgReportGraphHeight}>
+                        </div>
+                        " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename} ;
+                    } || {
+                        cErr "Failed to generate PerfMon graph! It will be replaced by a placeholder image!" ;
+                        echo -e "
+                        <div class='item'>
+                            <h3><a href='#${COUNTER}'>#${COUNTER}</a> <a href='#DefinePerfMon'>FAILED TO GENERATE LOCAL PERF.MON GRAPH !!! </a></h3> 
+                            <img class='img-polaroid' src='${cfgHtmlReportGraphsDir}/bootstrap/img/failedToGenerateGraph.png' width=${cfgReportGraphWidth} height=${cfgReportGraphHeight}>
+                        </div>
+                        " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename} ;
+                    }
+                else
+                    # increment counter to add it to the graph name.
+                    # can be used as the carousel index indicatr
+                    let COUNTER=COUNTER+1
+                    cWarn "Node ${i} didn't return a Perf-Mon-local.jtl file!!!"
+                    echo -e "
+                    <div class='item'>
+                        <h2><a href='#${COUNTER}'>#${COUNTER}</a> <a class='text-error' href='#DefinePerfMon'>Performance graph of the jmeter-ec2 node is MISSING</a></h2>
+                        <div class='emptyCarouselItem'>
+                            <blockquote class='text-error'>because jmeter-ec2 node no: ${i} did not return a PerfMon-local.jtl file!!!</blockquote>
+                        </div>
+                    </div>
+                    " >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+                fi;
+
+            done
+
+            # add carousel's end to the report        
+            cat $LOCAL_HOME/resources/reportCarouselEnd.txt >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+
+
+
+            #***************************************************************************
+            # Generate graphs for each of the load generators
+            #***************************************************************************
+            if ${cfgCreateGraphsForEachLoadGenerator} ; then
+                # add the opening DIV to the report        
+                cat $LOCAL_HOME/resources/individualGraphsBegining.txt >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+
+                # process single result files
+                # apart from PerfMon results (see loop above)
+                for (( i=0; i<$instance_count; i++ )) ; do
+                    for res in "${results[@]}"; do
+                        # don't add --relative-times parameter to some graphs
+                        insertRelativeTimeParam="--relative-times no"
+                        case "${graphsWithoutRelTimeParam[@]}" in *"${res}"*)
+                            insertRelativeTimeParam="";;
+                        esac;
+                        cLog "Generating '${res}' graph from node '${i}' from '${i}/${res}.jtl' file"
+                        CMD="java -Djava.awt.headless=true -jar $LOCAL_HOME/${JMETER_VERSION}/lib/ext/CMDRunner.jar --loglevel WARN --tool Reporter ${insertRelativeTimeParam} --generate-png $LOCAL_HOME/projects/$project/results/${cfgHtmlReportGraphsDir}/node${i}-${res}.png --input-jtl $LOCAL_HOME/projects/$project/${i}/result.jtl --plugin-type ${res} --width ${cfgReportGraphWidth} --height ${cfgReportGraphHeight}"
+                        repeatTillSucceedWithExecTimeout 5 ${cfgGraphGenerationTimeout} "${CMD}" \
+                        && {
+                            echo -e "\t\tNode: ${i}: <a href='${cfgHtmlReportGraphsDir}/node${i}-${res}.png' target='_blank'>${res}</a><br/>" >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+                        } || {
+                            cErr "Failed to generate ${res} graph! It will be replaced by a placeholder image!" ;
+                            echo -e "\t\tNode: ${i}: <a href='${cfgHtmlReportGraphsDir}/bootstrap/img/failedToGenerateGraph.png' target='_blank'>FAILED TO GENERATE: ${res}</a><br/>" >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+                        }
+                    done
+                done
+
+                # add the closing DIV to the report        
+                cat $LOCAL_HOME/resources/individualGraphsEnd.txt >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+            else
+                cWarn "Generating individual graphs for each of the load generators is disabled!"
+            fi; # end of: if ${cfgCreateGraphsForEachLoadGenerator} ...
+
+
+            #***************************************************************************
+            # add closing tags to the report
+            #***************************************************************************
+            cat $LOCAL_HOME/resources/reportFooter.txt >> $LOCAL_HOME/projects/$project/results/${cfgHtmlReportFilename}
+
+
+        # end of IF checking whether JMeter is installed
+        else
+            cErr "JMeter is NOT installed, please run ./download-jmeter.sh"
+        fi;
+    fi; 
+    #
+    # end of generate graphs
+    ############################################################################
+
 
 
 	
@@ -1140,7 +1649,7 @@ function runcleanup() {
 	if [ ! -z "$DB_HOST" ] ; then
 	    echo -n "copying import-results.sh to database..."
 	    (scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
-	                                  -i $DB_PEM_PATH/$DB_PEM_FILE \
+	                                  -i $DB_PEM_PATH/$DB_PEM_FILE -P $DB_SSH_PORT \
 	                                  $LOCAL_HOME/import-results.sh \
 	                                  $DB_PEM_USER@$DB_HOST:$REMOTE_HOME) &
 		wait
@@ -1149,21 +1658,21 @@ function runcleanup() {
 	    # scp results to remote db
 	    echo -n "uploading jtl file to database.."
 	    (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -r \
-	                                  -i $DB_PEM_PATH/$DB_PEM_FILE \
-	                                  $LOCAL_HOME/projects/$project/results/projects/$project-$DATETIME-complete.jtl \
+	                                  -i $DB_PEM_PATH/$DB_PEM_FILE -P $DB_SSH_PORT \
+	                                  $LOCAL_HOME/projects/$project/$project-$DATETIME-complete.jtl \
 	                                  $DB_PEM_USER@$DB_HOST:$REMOTE_HOME/import.csv) &
 	    wait
 	    echo -n "done...."
 
 		# set permissions
 	    (ssh -n -o StrictHostKeyChecking=no \
-	        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST \
+	        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST -p $DB_SSH_PORT \
 			"chmod 755 $REMOTE_HOME/import-results.sh")
 
 	    # Import jtl to database...
 	    echo -n "importing jtl file..."
 	    (ssh -nq -o StrictHostKeyChecking=no \
-	        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST \
+	        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST -p $DB_SSH_PORT \
 	        "$REMOTE_HOME/import-results.sh \
 						'localhost' \
 						'$DB_NAME' \
@@ -1193,18 +1702,50 @@ function runcleanup() {
 	fi
 	#***************************************************************************
     
-    
+
+
+    ############################################################################
+    # Tidy up
+	#
+    # delete all tmp folder were we inflated all the zipped files with results
+    for (( i=0; i<$instance_count; i++ )) ; do
+        cLog "Removing folder: $LOCAL_HOME/projects/$project/$i"
+        rm -fr $LOCAL_HOME/projects/$project/$i
+    done
+
+    # move combined results file to the results folder
+    # this file will be processed by the Jenkins Performance plugin
+    #mv $LOCAL_HOME/projects/$project/jtls/${DATETIME}-results-complete.jtl $LOCAL_HOME/projects/$project/results/
+
+    # remove jtls folder with temporary grouped files used for generating graphs
+    rm -fr $LOCAL_HOME/projects/$project/jtls/
+
+
+    cLog "Removing all tmp merged files"
+    rm $LOCAL_HOME/projects/$project/*.jtl
+
+    # delete all the remote zipped result files
+    rm $LOCAL_HOME/projects/$project/$DATETIME-*-jtls.zip \
+        && {
+            cLog "Deleted all zipped result files: $DATETIME-*-jtls.zip. You can still find them in the results archive in: results/results.zip or results/results.tar.bz2"
+        } || {
+            cWarn "Something went wrong when deleting $LOCAL_HOME/projects/$project/$DATETIME-*-jtls.zip"
+        }
+   
     # tidy up working files
     # for debugging purposes you could comment out these lines
     rm $LOCAL_HOME/projects/$project/$DATETIME*.out
     rm $LOCAL_HOME/projects/$project/working*
+    #
+    # end of tidying up step
+    ############################################################################
 
 
     echo
     echo "   -------------------------------------------------------------------------------------"
     echo "                  jmeter-ec2 Automation Script - COMPLETE"
     echo
-    echo "   Test Results: $LOCAL_HOME/projects/$project/results/$project-$DATETIME-complete.jtl"
+    echo "   Test Result file $project-$DATETIME-complete.jtl is in the: $LOCAL_HOME/projects/$project/results/results(tar.bz2/zip) archive"
     echo "   -------------------------------------------------------------------------------------"
     echo
 }
@@ -1217,7 +1758,7 @@ function updateTest() {
 		#echo "sqlstmt = '"$1"'"
 		#echo "sqlstr = '"$sqlstr"'"
 		sqlresult=$(ssh -nq -o StrictHostKeyChecking=no \
-	        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST \
+	        -i $DB_PEM_PATH/$DB_PEM_FILE $DB_PEM_USER@$DB_HOST -p $DB_SSH_PORT \
 			"$sqlstr -e '$1'")
 			
 		#echo "sqlresult = '"$sqlresult"'"
@@ -1285,7 +1826,7 @@ function control_c(){
     echo "> Stopping test..."
     for f in ${!hosts[@]} ; do
         ( ssh -nq -o StrictHostKeyChecking=no \
-        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$f]} \
+        -i $PEM_PATH/$PEM_FILE $USER@${hosts[$f]} -p $REMOTE_PORT \
         $REMOTE_HOME/$JMETER_VERSION/bin/stoptest.sh ) &
     done
     wait

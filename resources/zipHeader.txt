@@ -1,4 +1,30 @@
-/bootstrap/js/bootstrap.min.js"></script>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>*TITLE*</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="*FOLDER*/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style type='text/css'>
+    .container {
+        width:*WIDTH*px;
+    }
+    img { 
+        max-width:*WIDTH*px;
+    }
+    #graphCarousel {
+        width:*WIDTH*px;
+        margin: 0px auto;
+    } 
+    .emptyCarouselItem {
+        width:*WIDTH*px;
+        height:*HEIGHT*px;
+    }
+    </style>
+  </head>
+  <body>
+    <script src="*FOLDER*/bootstrap/js/jquery-1.10.2.min.js"></script>
+    <script src="*FOLDER*/bootstrap/js/bootstrap.min.js"></script>
     <script type="text/javascript">
     // disable carousel auto-slide 
     $(document).ready(function() {
@@ -7,8 +33,23 @@
                 interval: false
             });
         });
+        // this function allows to use URL hash to point directly at selected slide
+        $(function(){
+            if (window.location.hash) {
+                noOfSlides = $('.item').length-1;
+                slide = parseInt(window.location.hash.replace('#',''));
+                if (slide <= noOfSlides) {
+                    console.log("Hash" + window.location.hash + " and slide no. is: " + slide);            
+                    $('#graphCarousel').carousel(slide);
+               } else {
+                    console.log("No such slide: #"+slide);
+                    alert("Check the URL's hash. There's no such slide: #"+slide);
+               }
+            }
+        });
     });
     </script>
+    <h3>*TITLE*</h3>
 <div class="container">
     <div class="row">
         <div class="span9">
@@ -28,8 +69,7 @@
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="8">Transactions per Second</a></li>
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="9">Transaction Throughput vs Threads</a></li>
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="10">Active Threads Over Time</a></li>
-                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="11">PerfMon Remote</a></li>
-                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="12">PerfMon Local</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="11">PerfMon graphs</a></li>
                         </ul>
                     </div>
                 </div>

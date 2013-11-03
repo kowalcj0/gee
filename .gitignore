@@ -5,28 +5,44 @@
 *.tmp
 *.swp
 *.zip
+# if you want to track zipped data files
+# then in the projects data folder create .gitignore and add !*.zip
+
 *.png
 !SampleResultSaveConfiguration.png
 !Listener-configuration.png
+!glyphicons-halflings-white.png
+!glyphicons-halflings.png
+!failedToGenerateGraph.png
 *.html
 0
 
-ec2/bin
-ec2/lib
+#ec2/bin
+#ec2/lib
+
+
+# file with user specific AWS access keys
+*_secrets.properties
+
+# ignore Vagrant's folder
+.vagrant
+
+# ignore jenkins CLI tool
+jenkins-cli.jar
 
 target
 
-#ec2 keys
+# ignore all ec2 keys except one used for my local VM testing
 *.pem
+!janusz_local_vm.pem
 
-*.properties
-!secrets.properties
-!jmeter.properties
-!jmeter-ec2.properties
-!example-local-config.properties
 
 #gedit
 *.*~
 
 #jmeter
 apache-jmeter*
+
+target
+
+results/*

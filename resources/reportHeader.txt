@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>*TITLE*</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="*FOLDER*/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style type='text/css'>
+    .container {
+        width:*WIDTH*px;
+    }
+    img { 
+        max-width:*WIDTH*px;
+    }
+    #graphCarousel {
+        width:*WIDTH*px;
+        margin: 0px auto;
+    } 
+    .emptyCarouselItem {
+        width:*WIDTH*px;
+        height:*HEIGHT*px;
+    }
+    #thresholdsContainer, #aggregateReportContainer {
+        display: none;
+    }
+    .thresholdsTbl{
+        table-layout:fixed;
+    }
+    .thresholdsTbl td {
+        border: 1px solid #ddd;
+    }
+    .thresholdsTbl tr:hover td {
+        border: 1px solid #dea;
+        background-color: #08c;
+        color: #fff;
+    }
+    </style>
+  </head>
+  <body>
+    <script src="*FOLDER*/bootstrap/js/jquery-1.10.2.min.js"></script>
+    <script src="*FOLDER*/bootstrap/js/bootstrap.min.js"></script>
+    <script src="*FOLDER*/bootstrap/js/jquery.csv-0.71.js"></script>
+    <script type="text/javascript">
+    // disable carousel auto-slide 
+    $(document).ready(function() {
+        $('#graphCarousel').each(function(){
+            $(this).carousel({
+                interval: false
+            });
+        });
+        // this function allows to use URL hash to point directly at selected slide
+        $(function(){
+            if (window.location.hash) {
+                noOfSlides = $('.item').length-1;
+                slide = parseInt(window.location.hash.replace('#',''));
+                if (slide <= noOfSlides) {
+                    console.log("Hash" + window.location.hash + " and slide no. is: " + slide);            
+                    $('#graphCarousel').carousel(slide);
+               } else {
+                    console.log("No such slide: #"+slide);
+                    alert("Check the URL's hash. There's no such slide: #"+slide);
+               }
+            }
+        });
+        $(function(){
+            // load the thresholds.csv file
+            var csvfilename = "thresholds.csv";
+            var input = $.get(csvfilename)
+              .done(function(data) {
+                console.log("Successfully loaded CSV file: " + csvfilename);
+                processThresholds(data);
+              })
+              .fail(function() {
+                console.log("Couldn't load: " + csvfilename);
+              })
+              .always(function() {
+                //do nothing...(yet :))
+            });
+            
+            function processThresholds(thresholds){
+                fillUpTheThresholds(thresholds);
+                showThresholdsButton();
+            }
+            
+            function showThresholdsButton() {
+                console.log("Enabling thresholds button");
+                $("#thresholdsContainer").show();
+            }
+            
+            function fillUpTheThresholds(thresholds){
+                console.log("Raw CSV thresholds:\n" + thresholds);
+                var thr = $.csv.toObjects(thresholds);
+                thr.forEach(function(entry) {
+                    for (var propt in entry) {
+                        var item = "";
+                        // check if thresholds is not marked as disabled
+                        if (entry[propt] == -1) {
+                            item = "<li><a target=\"_blank\">"+propt+" - disabled</a></li>";
+                        } else {
+                            item = "<li><a target=\"_blank\">"+propt+" - "+ entry[propt]+"</a></li>";
+                        }
+                        $("#thresholdsList").append(item);
+                    };
+                });
+            }
+        });
+        
+        $(function(){
+            // load the aggregate.csv file
+            var csvfilename = "aggregate.csv";
+            var input = $.get(csvfilename)
+              .done(function(data) {
+                console.log("Successfully loaded CSV file: " + csvfilename);
+                processThresholds(data);
+              })
+              .fail(function() {
+                console.log("Couldn't load: " + csvfilename);
+              })
+              .always(function() {
+                //do nothing...(yet :))
+            });
+            
+            function processThresholds(thresholds){
+                fillUpTheThresholds(thresholds);
+                showThresholdsButton();
+            }
+            
+            function showThresholdsButton() {
+                console.log("Enabling aggregate report button");
+                $("#aggregateReportContainer").show();
+            }
+            
+            function fillUpTheThresholds(thresholds){
+                console.log("Raw CSV aggregate report:\n" + thresholds);
+                
+                //var thr = $.csv.toObjects(thresholds);
+                var thr = $.csv.toArrays(thresholds);
+                var aggregateReportList = $("#aggregateReportList");
+                table ="<table class=\"thresholdsTbl\" colspan=\""+thr[0].length+"\">";
+                thr.forEach(function(entry) {
+                    table+="<tr>";
+                    for (var propt in entry) {
+                        table+="<td>"+entry[propt]+"</td>"
+                    }
+                    table+="</tr>";
+                });
+                table+="</table>"
+                aggregateReportList.append(table);
+            }
+        });
+
+    }); // end of $(document).ready()
+    </script>
+    <h3>*TITLE*</h3>
+<div class="container">
+    <div class="row">
+        <div class="span9">
+            <div class="row">
+                <div class="span2">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Slide to graph</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="0">Response Times Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="1">Latencies Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="2">Response Times Distribution</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="3">Response Times Percentiles</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="4">Bytes Throughput Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="5">Server Hits per Second</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="6">Response Codes per Second</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="7">Response Times vs Threads</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="8">Transactions per Second</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="9">Transaction Throughput vs Threads</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="10">Active Threads Over Time</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="11">PerfMon Remote</a></li>
+                            <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="12">PerfMon Local</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="span2">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Few words on</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
+                            <li><a tabindex="-1" href="#DefineResponseTimesOverTime">Response Times Over Time</a></li>
+                            <li><a tabindex="-1" href="#DefineLatenciesOverTime">Latencies Over Time</a></li>
+                            <li><a tabindex="-1" href="#DefineResponseTimesDistribution">Response Times Distribution</a></li>
+                            <li><a tabindex="-1" href="#DefineResponseTimesPercentiles">Response Times Percentiles</a></li>
+                            <li><a tabindex="-1" href="#DefinePerfMon">PerfMon - Performance Monitor</a></li>
+                            <li><a tabindex="-1" href="#DefineThroughputVsThreads">Transaction Throughput vs Threads</a></li>
+                            <li><a tabindex="-1" href="#DefineTransactionsPerSecond">Transactions per Second</a></li>
+                            <li><a tabindex="-1" href="#DefineResponseCodesPerSecond">Response Codes per Second</a></li>
+                            <li><a tabindex="-1" href="#DefineTimesVsThreads">Response Times vs Threads</a></li>
+                            <li><a tabindex="-1" href="#DefineHitsPerSecond">Server Hits per Second</a></li>
+                            <li><a tabindex="-1" href="#DefineBytesThroughputOverTime">Bytes Throughput Over Time</a></li>
+                            <li><a tabindex="-1" href="#DefineThreadsStateOverTime">Active Threads Over Time</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="span2" id="thresholdsContainer">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Thresholds</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id="thresholdsList"></ul>
+                    </div>
+                </div>
+                <div class="span2" id="aggregateReportContainer">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Aggregate Report</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id="aggregateReportList"></ul>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="graphCarousel" class="carousel slide">
+              <!-- Carousel items -->
+              <div class="carousel-inner">
+

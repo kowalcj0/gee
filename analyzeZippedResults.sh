@@ -16,7 +16,12 @@ MY_PATH="`dirname \"$0\"`";
 
 
 # Execute the jmeter-ec2.properties file, to get access to JMETER_VERSION variable
-. jmeter-ec2.properties
+# if default config file is not present, then use default version of jmeter=2.9
+if [ -f "${MY_PATH}/jmeter-ec2.properties" ] ; then
+    . ${MY_PATH}/jmeter-ec2.properties
+else
+    JMETER_VERSION="apache-jmeter-2.10"
+fi
 
 ################################################################################
 # check if all required programs are installed
@@ -71,6 +76,7 @@ if [ -z "$FILES" ] ; then
     exit 1; 
 else
     lsCmd="ls --format single-column ${FILES}"
+    FILES_PATH=`basename "${FILES}"` # a copy of the original path, used to show in report
     FILES=`${lsCmd} 2> /dev/null`
     COUNT=`${lsCmd} 2> /dev/null | wc -l`
     if [[ ${COUNT} -eq 1 ]]; then
@@ -147,11 +153,18 @@ refineGroupedFile "resultsMerged.jtl" "resultsMergedAndRefined.jtl"
     # ps. that's why header filer is split in three parts
     # I'm echo'eing with '-n' to remove new lines when appending to report file
     #***************************************************************************
-    echo -n `cat resources/zipHeader-part1.txt` > ${TARGET}/${DATETIME}-report.html
-    echo -n ${DATETIME} >> ${TARGET}/${DATETIME}-report.html
-    echo -n `cat resources/zipHeader-part2.txt` >> ${TARGET}/${DATETIME}-report.html
-    echo -n ${DATETIME} >> ${TARGET}/${DATETIME}-report.html
-    echo -n `cat resources/zipHeader-part3.txt` >> ${TARGET}/${DATETIME}-report.html
+    cat ${MY_PATH}/resources/zipHeader.txt \
+    | sed "s/*WIDTH\*/${WIDTH}/g" \
+    | sed "s/*HEIGHT\*/${HEIGHT}/g" \
+    | sed "s/*FOLDER\*/${DATETIME}/g" \
+    | sed "s/*TITLE\*/JMeter report generated on: ${DATETIME} from ${FILES_PATH} using analyzeZippedResults\.sh/g" \
+    > ${TARGET}/${DATETIME}-report.html
+
+    #echo -n `cat resources/zipHeader-part1.txt` > ${TARGET}/${DATETIME}-report.html
+    #echo -n ${DATETIME} >> ${TARGET}/${DATETIME}-report.html
+    #echo -n `cat resources/zipHeader-part2.txt` >> ${TARGET}/${DATETIME}-report.html
+    #echo -n ${DATETIME} >> ${TARGET}/${DATETIME}-report.html
+    #echo -n `cat resources/zipHeader-part3.txt` >> ${TARGET}/${DATETIME}-report.html
 
 ################################################################################
 # STEP 4 - create graphs from the grouped file

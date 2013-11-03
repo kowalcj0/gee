@@ -1,11 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # jmeter-ec2 - Install Script (Runs on remote ec2 server)
 #
 
 REMOTE_HOME=$1
 INSTALL_JAVA=$2
-JMETER_VERSION=$3
+JMETER_VERSION=${3-apache-jmeter-2.10}
+
+pluginsVersion="JMeterPlugins-Standard-1.1.2"
+pluginsExtrasVersion="JMeterPlugins-Extras-1.1.2"
+serverAgentVersion="ServerAgent-2.2.1"
+jmeterDwnUrl="http://mirrors.enquira.co.uk/apache//jmeter/binaries/"
+pluginsDwnUrl="http://jmeter-plugins.org/files/"
 
 # Source the jmeter-ec2.properties file, establishing these constants.
 . $REMOTE_HOME/jmeter-ec2.properties
@@ -14,18 +20,39 @@ echo "jmeter-ec2.properties was loaded";
 function install_jmeter_plugins() {
     echo "Downloading jMeter-Plugins with dependencies"
     # download and inflate newer version of JMeterPlugins
-    wget -q --progress=bar -O $REMOTE_HOME/JMeterPlugins.zip http://jmeter-plugins.googlecode.com/files/JMeterPlugins-1.0.0.zip
-    wget -q --progress=bar -O $REMOTE_HOME/JMeterPlugins-libs.zip http://jmeter-plugins.googlecode.com/files/JMeterPlugins-libs-1.0.0.zip
-    wget -q --progress=bar -O $REMOTE_HOME/ServerAgent.zip http://jmeter-plugins.googlecode.com/files/ServerAgent-2.2.1.zip
+    wget --progress=bar -O $REMOTE_HOME/JMeterPlugins.zip ${pluginsDwnUrl}${pluginsVersion}.zip \
+                && {
+                    echo "${pluginsVersion} successfully downloaded"
+                    unzip -q -j -o $REMOTE_HOME/JMeterPlugins.zip -d $REMOTE_HOME/$JMETER_VERSION/lib/ext
+                    rm $REMOTE_HOME/JMeterPlugins.zip
+                } || {
+                    echo "There was a problem when downloading: ${pluginsVersion}"
+                    rm $REMOTE_HOME/JMeterPlugins.zip
+                    exit 10
+                }
+    wget -q --progress=bar -O $REMOTE_HOME/JMeterPlugins-extras.zip ${pluginsDwnUrl}${pluginsExtrasVersion}.zip \
+                && {
+                    echo "${pluginsExtrasVersion} successfully downloaded"
+                    unzip -q -j -o $REMOTE_HOME/JMeterPlugins-extras.zip -d $REMOTE_HOME/$JMETER_VERSION/lib/ext
+                    rm $REMOTE_HOME/JMeterPlugins-extras.zip
+                } || {
+                    echo "There was a problem when downloading: ${pluginsExtrasVersion}"
+                    rm $REMOTE_HOME/JMeterPlugins-extras.zip
+                    exit 11
+                }
+    wget -q --progress=bar -O $REMOTE_HOME/ServerAgent.zip ${pluginsDwnUrl}${serverAgentVersion}.zip \
+                && {
+                    echo "${serverAgentVersion} successfully downloaded"
+                    unzip -q -o $REMOTE_HOME/ServerAgent.zip -d $REMOTE_HOME/$JMETER_VERSION/lib/ext # don't skip junk paths
+                    rm $REMOTE_HOME/ServerAgent.zip
+                } || {
+                    echo "There was a problem when downloading: ${serverAgentVersion}"
+                    rm $REMOTE_HOME/ServerAgent.zip
+                    exit 12
+                }
 
-    unzip -q -o $REMOTE_HOME/ServerAgent.zip -d $REMOTE_HOME/$JMETER_VERSION/lib/ext # don't skip junk paths
-    unzip -q -j -o $REMOTE_HOME/JMeterPlugins.zip -d $REMOTE_HOME/$JMETER_VERSION/lib/ext
-    unzip -q -j -o $REMOTE_HOME/JMeterPlugins-libs.zip -d $REMOTE_HOME/$JMETER_VERSION/lib/ext
     echo "jMeter-Plugins with dependencies were downloaded and extracted successfully"
     
-    rm $REMOTE_HOME/ServerAgent.zip
-    rm $REMOTE_HOME/JMeterPlugins.zip
-    rm $REMOTE_HOME/JMeterPlugins-libs.zip
 }
 
 function install_mysql_driver() {
@@ -36,6 +63,7 @@ function install_mysql_driver() {
 # will launch PerfMon locally
 # can help track the performance of the local node
 function launchPerfMonAgent() {
+    pkill -f CMDRunner.jar && { echo "Killed a stale instance of Server Agent"; } 
     echo "Launching a PerfMon agent locally"
     nohup $REMOTE_HOME/$JMETER_VERSION/lib/ext/startAgent.sh --udp-port 0 --tcp-port 4444 > agent.out &
     echo "a PerfMon agent was launched locally "

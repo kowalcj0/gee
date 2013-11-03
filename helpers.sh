@@ -35,6 +35,21 @@ isProgramInstalled() {
     command -v "${1}" >/dev/null 2>&1 || { cLog "This script requires '\"${1}\"' but it's not installed. Aborting." >&2; exit 1; }
 }
 
+
+# Description: checks if spefified program is installed.
+# Returns true or false accordingly. PS. it doesn't exit the script if not installed.
+# Usage: isInstalled "xmllint"
+# $1 program name
+isInstalled(){
+    command -v "${1}" >/dev/null 2>&1 \
+        && {
+            echo true
+        } || { 
+            echo false
+        }
+}
+
+
 # Description: will extract all zips
 # $1 - a list of zip files to extract
 function extractFiles() {
@@ -47,6 +62,59 @@ function extractFiles() {
         cLog "Done."
     done;
 }
+
+
+# author: Janusz Kowalczyk
+# created: 2013-08-19
+# Description:
+# checks whether two values meets the greater or equal (x>=y) condition
+# btw. function omitts values starting with a hyphen
+# Example usage:
+# assertGEWithLabels ${cfgUnstableThresholdAvg} ${cfgFailureThresholdAvg} "Avarage unstable threshold" "Avarage failure threshold"
+# assertGEWithLabels 2.0 5.0 "Avarage unstable threshold" "Avarage failure threshold"
+function assertGEWithLabels(){
+    local leftOperand=${1-}
+    local rightOperand=${2-}
+    local leftLabel=${3-Left operand}
+    local rightLabel=${4-Right operand}
+
+    cLog "Checking values: '${leftLabel}'='${leftOperand}' / '${rightLabel}'='${rightOperand}'" ${DEBUG}
+
+    # check if both operands are not empty
+    if [[ -z ${leftOperand} ]] && [[ -z ${rightOperand} ]]; then
+        cErr "Please check if values for both operands: '${leftLabel}' and '${rightLabel}' were provided!"
+        exit 1
+    fi
+
+    # check if operand's value start with hyphen '-'
+    # if so, exit from the function
+    if [[ "${leftOperand}" =~ ^- ]] || [[ "${rightOperand}" =~ ^- ]]; then
+        cLog "Omitting the check of: '${leftLabel}'='${leftOperand}' & '${rightLabel}'='${rightOperand}' as one of the operands starts with a hyphen" ${DEBUG}
+        return 111
+    fi
+
+    # check if operads are numbers
+    if [[ ! ${leftOperand} =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        cErr "'${leftLabel}'='${leftOperand}' should be a number!"
+        exit 1
+    fi
+    if [[ ! ${rightOperand} =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        cErr "'${rightLabel}'='${rightOperand}' should be a number!"
+        exit 1
+    fi
+
+    # check if they meet the >= condition
+    if (($(echo "$leftOperand >= $rightOperand" |bc)!=0)); then
+        cErr "'${leftLabel}'=${leftOperand} is >= than '${rightLabel}'=${rightOperand}"
+        cErr "Please fix the configuration!"
+        exit 1
+    fi
+
+    cLog "Successful assertion" ${DEBUG}
+    return 0
+}
+
+
 
 # Description: Will merge selected file in folders into a grouped file.
 # Folder names are based on the zip filenames used to extract them earlier
@@ -282,3 +350,76 @@ function generatePerfMonGraphsFromFiles() {
         fi;
    done;
 }
+
+# Will repeat CMD N-Times with a given Timeout time (using timeout3.sh script).
+# btw. $LOCAL_HOME is a variable defined in the jmeter-ec2.sh that holds
+# the absolute path to the project's folder
+# $1 EXEC_MAX_TIMES
+# $2 EXEC_TIMEOUT
+# $3 CMD
+# Example usage:
+# repeatTillSucceedWithExecTimeout 3 3 "sleep 5"
+# or with an optional step to execute code depending on the result
+# repeatTillSucceedWithExecTimeout 2 3 "sleep 5" \
+#    && {
+#        echo passed
+#    } || {
+#        echo failed
+#    }
+function repeatTillSucceedWithExecTimeout() {
+    if [ $# -lt 3 ] ; then
+        cErr "${FUNCNAME}: Only $# parameters were provided. Expecting 3. Exiting with 0!";
+        exit 0;
+    fi
+    local EXEC_MAX_TIMES=$1
+    local EXEC_TIMEOUT=$2
+    local CMD=$3
+    local EXEC_COUNTER=1
+    local EXEC_RESULT=''
+    # run the CMD first time and get the exit code
+    $LOCAL_HOME/timeout3.sh -t ${EXEC_TIMEOUT} ${CMD}
+    EXEC_RESULT=`echo $?`
+    # repeat until succeed or executed to many times
+    while [[ "${EXEC_RESULT}" -gt "0" ]] && [[ "${EXEC_COUNTER}" -le "${EXEC_MAX_TIMES}" ]] ; do
+        cWarn "Repeating last command... attempt #${EXEC_COUNTER}. Command:'${CMD}'"
+        let EXEC_COUNTER=EXEC_COUNTER+1
+        $LOCAL_HOME/timeout3.sh -t ${EXEC_TIMEOUT} ${CMD}
+        EXEC_RESULT=`echo $?`
+    done
+    return ${EXEC_RESULT}
+}
+
+
+
+######################################3
+#
+# Parameters:
+# $1 - name of the variable to which result date will be assigned
+# $2 - [OPTIONAL] milisecond datetime
+# $3 - [OPTIONAL] custom output format
+#
+# Examples:
+#   #1: wihtout milisecond datetime will use the current datetime
+#   msDatetimeToDate dddd
+#   echo ${dddd}
+#  
+#   #2: convert provided datetime to date using default format "%Y-%m-%d %H:%M:%S %Z %:z"
+#   msDatetimeToDate dddd 1382452212367
+#   echo ${dddd}
+#
+#   #3: convert using custom format
+#   msDatetimeToDate dddd 1382452212367 "%Y-%m-%d %H:%M:%S %Z"
+#   echo ${dddd}
+# 
+function msDatetimeToDate(){
+    if [ -z "${2}" ] ; then 
+        local dt=`date +%s000`
+    else
+        local dt=${2-0}
+    fi
+    local __resultVar=$1
+    local format=${3-'%Y-%m-%d %H:%M:%S %Z %:z'}
+    local res=`(date -d @$( echo "(${dt} + 500) / 1000" | bc) +"${format}")`
+    eval "$__resultVar="'${res}'""
+}
+
