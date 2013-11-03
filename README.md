@@ -154,7 +154,7 @@ ps. You don't have to provide the "count" parameter, as it will be automatically
 
 ### Usage:
 Use `jmeter-ec2.properties.vagrant` as a template for local provisioning. This file is setup to use Vagrants ssh key, ports, etc.
-```
+```bash
 # start vm and provision defaultjre
 vagrant up
 # run your project
