@@ -423,3 +423,85 @@ function msDatetimeToDate(){
     eval "$__resultVar="'${res}'""
 }
 
+
+# Three statistic functions: mean, stdev and median 
+# Src: 
+#   http://stackoverflow.com/a/9790156
+#   http://stackoverflow.com/a/6166514
+#
+# Usage:
+# Let's assume you have a CSV file with a header line. That looks like the one
+# below: (here we use a JMeter result file)
+# 
+# timeStamp,elapsed,label,responseCode,responseMessage,dataType,success,bytes,grpThreads,allThreads,Latency,Hostname,IdleTime
+# 1383319414875,265,Get,200,OK,text,true,23994,4,4,231,quantal64,0
+# 1383319414878,264,Get,200,OK,text,true,23994,4,4,229,quantal64,0
+# 1383319414878,268,Get,200,OK,text,true,23994,4,4,229,quantal64,0
+# ...
+# 
+# then in bash:
+# 
+# file="results.csv"
+# # use awk to extract latency column but without the header line
+# # and sort the column as awk assumes one column of numerically sorted data
+# latency=`awk -v OFS="," -F"," '{print $12}' ${file} | sed "1 d" | sort -n`
+#
+# # pass the variable to the function and save results as another variable
+# latency_mean=`mean "${latency}"`
+# latency_stdev=`stdev "${latency}"`
+# latency_med=`med "${latency}"`
+# 
+# print results:
+# echo "Latency: Mean=${latency_mean} ms, StDev=${latency_stdev}, Median=${latency_med}"
+#
+function mean() {
+    local data="$1"
+    echo "$data" | awk '{mean += $1} END {print mean/NR;}'
+}
+function stdev() {
+    local data="$1"
+    echo "$data" | awk '{sum+=$data; sumsq+=$data*$data;} END {print sqrt(sumsq/NR - (sum/NR)**2);}'
+}
+function median() {
+    local data="$1"
+    echo "$data" | gawk '{
+        count[NR] = $1;
+    }
+    END {
+        if (NR % 2) {
+            print count[(NR + 1) / 2];
+        } else {
+            print (count[(NR / 2)] + count[(NR / 2) + 1]) / 2.0;
+        }
+    }'
+}
+
+# Finds the position of a column in a CSV header
+# Params:
+# $1 - searched column name
+# $2 - CSV header line (please pass only one line)
+#
+# example usage:
+#   file="path_to_file.csv"
+#   cols=`head -n1 ${file}`
+#   latency_pos=`findCSVColumnPostion "Latency" "${cols}"`
+function findCSVColumnPostion() {
+    local col_name="$1"
+    local columns="$2"
+    echo "${columns}" | awk -v SELECTED_FIELD=${col_name} '
+    BEGIN {
+      FS=",";
+    }
+
+    NR == 1 {
+      for (i=1; i <= NF; ++i) {
+        if ($i == SELECTED_FIELD) {
+          SELECTED_COL=i;
+        }
+      }
+    }
+
+    END {
+        print(SELECTED_COL);
+    }'
+}

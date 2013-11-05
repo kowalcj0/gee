@@ -137,6 +137,7 @@ cfgGenerateAggregatedResponseTimePercentilesReports=${cfgGenerateAggregatedRespo
 cfgCreateMergedResultFile=${cfgCreateMergedResultFile-true}
 cfgLocalJmeterLogLevel=${cfgLocalJmeterLogLevel-WARN}
 cfgRemoteJmeterLogLevel=${cfgRemoteJmeterLogLevel-INFO}
+cfgCalculateSimpleStatsFromAResultFile=${cfgCalculateSimpleStatsFromAResultFile-true}
 
 
 # TO-DO
@@ -1403,6 +1404,114 @@ function runcleanup() {
         cWarn "Generating aggregate CSV report is disabled!"
     fi;
    
+
+    ############################################################################
+    #
+    # Calculate the basic statistics from a merged result files
+    #
+    ############################################################################
+    if $cfgCalculateSimpleStatsFromAResultFile ; then
+        cLog "Calculating basic statistics from an aggregated result file: $LOCAL_HOME/projects/$project/${DATETIME}-results-complete.jtl"
+        file="$LOCAL_HOME/projects/$project/${DATETIME}-results-complete.jtl"
+        if [ ! -e "${file}" ] ; then
+            cErr "${file} doesn't exists!!!"
+        else
+            # get the CSV header
+            cols=`head -n1 ${file}`
+            # find out the coloumns positions
+            latency_pos=`findCSVColumnPostion "Latency" "${cols}"`
+            resptime_pos=`findCSVColumnPostion "elapsed" "${cols}"`
+            respsize_pos=`findCSVColumnPostion "bytes" "${cols}"`
+
+            # if column wasn't found then print the notification 
+            # and set all the stats to -1
+            # otherwise use awk to extract latency column without the header,
+            # sort the column as awk assumes one column of numerically sorted data
+            # then get the min and max values for given metric
+            # and calculate the mean, stdev and median 
+            if [ -z ${latency_pos} ] ; then
+                cWarn "Couldn't find 'Latency' coulmn in: ${file}"
+                cWarn "Setting all latency related stats to '-1'"
+                latency_min="-1"
+                latency_max="-1"
+                latency_mean="-1"
+                latency_stdev="-1"
+                latency_med="-1"
+            else
+                cLog "Latency column position is: ${latency_pos}" 
+                latency=`awk -v OFS="," -F"," '{print $'${latency_pos}'}' ${file} | sed "1 d" | sort -n`
+                latency_min_max=`awk -v OFS="," -F"," '{print $'${latency_pos}'}' ${file} | sort -n | sed -n '2p;$p'`
+                latency_min=`echo "${latency_min_max}" | sed -n '1p'`
+                latency_max=`echo "${latency_min_max}" | sed -n '2p'`
+                latency_mean=`mean "${latency}"`
+                latency_stdev=`stdev "${latency}"`
+                latency_med=`median "${latency}"`
+            fi
+
+            if [ -z ${resptime_pos} ] ; then
+                cWarn "Couldn't find 'elapsed' coulmn in: ${file}"
+                cWarn "Setting all response time related stats to '-1'"
+                resptime_min="-1"
+                resptime_max="-1"
+                response_mean="-1"
+                response_stdev="-1"
+                response_med="-1"
+            else
+                cLog "Response time column position is: ${resptime_pos}" 
+                resptime=`awk -v OFS="," -F"," '{print $'${resptime_pos}'}' ${file} | sed "1 d" | sort -n`
+                resptime_min_max=`awk -v OFS="," -F"," '{print $'${resptime_pos}'}' ${file} | sort -n | sed -n '2p;$p'`
+                resptime_min=`echo "${resptime_min_max}" | sed -n '1p'`
+                resptime_max=`echo "${resptime_min_max}" | sed -n '2p'`
+                response_mean=`mean "${resptime}"`
+                response_stdev=`stdev "${resptime}"`
+                response_med=`median "${resptime}"`
+            fi
+
+            if [ -z ${respsize_pos} ] ; then
+                cWarn "Couldn't find 'bytes' coulmn in: ${file}"
+                cWarn "Setting all response size related stats to '-1'"
+                respsize_min="-1"
+                respsize_max="-1"
+                respsize_mean="-1"
+                respsize_stdev="-1"
+                respsize_med="-1"
+            else
+                cLog "Response size column position is: ${respsize_pos}" 
+                respsize=`awk -v OFS="," -F"," '{print $'${respsize_pos}'}' ${file} | sed "1 d" | sort -n`
+                respsize_min_max=`awk -v OFS="," -F"," '{print $'${respsize_pos}'}' ${file} | sort -n | sed -n '2p;$p'`
+                respsize_min=`echo "${respsize_min_max}" | sed -n '1p'`
+                respsize_max=`echo "${respsize_min_max}" | sed -n '2p'`
+                respsize_mean=`mean "${respsize}"`
+                respsize_stdev=`stdev "${respsize}"`
+                respsize_med=`median "${respsize}"`
+            fi
+
+            # set nice color for the output :)
+            tput setaf 6; tput bold;
+            cLog "Latency       : Mean=${latency_mean}ms, StDev=${latency_stdev}ms, Median=${latency_med}ms, Min=${latency_min}ms, Max=${latency_max}ms"
+            cLog "Response time : Mean=${response_mean}ms, StDev=${response_stdev}ms, Median=${response_med}ms, Min=${resptime_min}ms, Max=${resptime_max}ms"
+            cLog "Response size : Mean=${respsize_mean}bytes, StDev=${respsize_stdev}bytes, Median=${respsize_med}bytes, Min=${respsize_min}bytes, Max=${respsize_max}bytes"
+            # revert colors to default
+            tput setaf default; tput sgr0; 
+
+            # save results to a file
+            echo "\
+            latancy_mean,latency_stdev,latency_median,latency_min,latency_max,\
+            resptime_mean,resptime_stdev,resptime_median,resptime_min,resptime_max,\
+            respsize_mean,respsize_stdev,respsize_median,respsize_min,respsize_max"\
+            | tr -d ' ' > $LOCAL_HOME/projects/$project/results/statistics.csv
+            echo "\
+            ${latency_mean},${latency_stdev},${latency_med},${latency_min},${latency_max},\
+            ${response_mean},${response_stdev},${response_med},${resptime_min},${resptime_max},\
+            ${respsize_mean},${respsize_stdev},${respsize_med},${respsize_min},${respsize_max}"\
+            | tr -d ' ' >> $LOCAL_HOME/projects/$project/results/statistics.csv
+
+            cLog "Basic statistics were saved in: $LOCAL_HOME/projects/$project/results/statistics.csv"
+        fi
+    else
+        cWarn "Calculating basic statistics is disabled!"
+    fi
+
 
 	############################################################################
     # Generate HTML repot with all the PNG graphs
