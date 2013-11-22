@@ -20,7 +20,7 @@
         width:*WIDTH*px;
         height:*HEIGHT*px;
     }
-    #thresholdsContainer, #aggregateReportContainer {
+    #thresholdsContainer, #aggregateReportContainer, #simpleStatisticsContainer {
         display: none;
     }
     .thresholdsTbl{
