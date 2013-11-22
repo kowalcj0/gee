@@ -34,6 +34,10 @@
         background-color: #08c;
         color: #fff;
     }
+    /*this class defines the width of the top menu and graph's description container */
+    .span9 {
+        width:100%;
+    }
     </style>
   </head>
   <body>
@@ -149,6 +153,49 @@
             }
         });
 
+        $(function(){
+            // load the statistics.csv file
+            var csvfilename = "statistics.csv";
+            var input = $.get(csvfilename)
+              .done(function(data) {
+                console.log("Successfully loaded CSV file: " + csvfilename);
+                processThresholds(data);
+              })
+              .fail(function() {
+                console.log("Couldn't load: " + csvfilename);
+              })
+              .always(function() {
+                //do nothing...(yet :))
+            });
+            
+            function processThresholds(thresholds){
+                fillUpTheThresholds(thresholds);
+                showThresholdsButton();
+            }
+            
+            function showThresholdsButton() {
+                console.log("Enabling simple statistics button");
+                $("#simpleStatisticsContainer").show();
+            }
+            
+            function fillUpTheThresholds(thresholds){
+                console.log("Raw CSV simple statistics file:\n" + thresholds);
+                var thr = $.csv.toObjects(thresholds);
+                thr.forEach(function(entry) {
+                    for (var propt in entry) {
+                        var item = "";
+                        // check if thresholds is not marked as disabled
+                        if (entry[propt] == -1) {
+                            item = "<li><a target=\"_blank\">"+propt+" - disabled</a></li>";
+                        } else {
+                            item = "<li><a target=\"_blank\">"+propt+" - "+ entry[propt]+"</a></li>";
+                        }
+                        $("#simpleStatisticsList").append(item);
+                    };
+                });
+            }
+        });
+        
     }); // end of $(document).ready()
     </script>
     <h3>*TITLE*</h3>
@@ -158,7 +205,7 @@
             <div class="row">
                 <div class="span2">
                     <div class="dropdown">
-                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Slide to graph</a>
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#" alt="Click here and select any graph to quickly get to it" title="Click here and select any graph to quickly get to it">Slide to graph</a>
                         <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="0">Response Times Over Time</a></li>
                             <li><a tabindex="-1" href="#" data-target="#graphCarousel" data-slide-to="1">Latencies Over Time</a></li>
@@ -178,7 +225,7 @@
                 </div>
                 <div class="span2">
                     <div class="dropdown">
-                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Few words on</a>
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#" alt="Read a short description of a selected graph" title="Read a short description of a selected graph">Few words on</a>
                         <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu">
                             <li><a tabindex="-1" href="#DefineResponseTimesOverTime">Response Times Over Time</a></li>
                             <li><a tabindex="-1" href="#DefineLatenciesOverTime">Latencies Over Time</a></li>
@@ -197,14 +244,20 @@
                 </div>
                 <div class="span2" id="thresholdsContainer">
                     <div class="dropdown">
-                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Thresholds</a>
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#" alt="Shows the thresholds used to check the results from this test run" title="Shows the thresholds used to check the results from this test run">Thresholds</a>
                         <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id="thresholdsList"></ul>
                     </div>
                 </div>
                 <div class="span2" id="aggregateReportContainer">
                     <div class="dropdown">
-                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#">Aggregate Report</a>
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#" alt="Shows the aggregate report generated using JMeterPluginsCMD Command Line Tool http://jmeter-plugins.org/wiki/JMeterPluginsCMD/ . NOTE: If you can't see all the values presented in these table on the graphs below, it's probably because the time granurality was to high. You can generate a new graph from an archived result file using lower value ie: java -jar CMDRunner.jar --granulation 100 ..." title="Shows the aggregate report generated using JMeterPluginsCMD Command Line Tool http://jmeter-plugins.org/wiki/JMeterPluginsCMD/ . NOTE: If you can't see all the values presented in these table on the graphs below, it's probably because the time granurality was to high. You can generate a new graph from an archived result file using lower value ie: java -jar CMDRunner.jar --granulation 100 ...">Aggregate Report</a>
                         <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id="aggregateReportList"></ul>
+                    </div>
+                </div>
+                <div class="span2" id="simpleStatisticsContainer">
+                    <div class="dropdown">
+                        <a class="btn btn-info dropdown-toggle" data-toggle="dropdown" href="#" alt="Shows basic test run statistics calculated from a JMeter result file. Only the total number of requests was taken into consideration when calculating these stats, so it doesn't matter how logn were: the ramp up and ramp down times . NOTE: If you can't see all the values presented in these table on the graphs below, it's probably because the time granurality was to high. You can generate a new graph from an archived result file using lower value ie: java -jar CMDRunner.jar --granulation 100 ..." title="Shows basic test run statistics calculated from a JMeter result file. Only the total number of requests was taken into consideration when calculating these stats, so it doesn't matter how logn were: the ramp up and ramp down times . NOTE: If you can't see all the values presented in these table on the graphs below, it's probably because the time granurality was to high. You can generate a new graph from an archived result file using lower value ie: java -jar CMDRunner.jar --granulation 100 ...">Simple Stats</a>
+                        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id="simpleStatisticsList"></ul>
                     </div>
                 </div>
             </div>

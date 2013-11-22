@@ -54,6 +54,7 @@ if [ -z "$project" ] ; then
 	exit
 fi
 
+
 # Set any null parameters to '-'
 if [ -z "$env" ] ; then env="-" ; fi
 if [ -z "$release" ] ; then release="-" ; fi
@@ -101,9 +102,22 @@ cLog "LOCAL_HOME after processing config files is: ${LOCAL_HOME}"
 # if parameters are not null then map them to jmeter CLI params
 # those variables are initialized here because first we have to load cfg file
 # to determine the $REMOTE_HOME
-if [ ! -z "$propfile" ] ; then propfile=" -q $REMOTE_HOME/${propfile}" ; fi
+if [ ! -z "$propfile" ] ; then 
+    # if $propfile is not empty
+    # then get its filename and create valid path on remote host
+    testPlanPropertiesFile=`basename "${propfile}"`
+    propfile=" -q $REMOTE_HOME/cfg/${testPlanPropertiesFile}";
+    cLog "JMeter will be exucuted on remote hosts with a cutom properties file: '${propfile}'"
+fi
+
 if [ ! -z "$logfile" ] ; then logfile=" -l $REMOTE_HOME/${logfile}" ; fi
 
+if [ ! -e "$LOCAL_HOME/projects/$project/${project}.jmx" ] ; then
+    cErr "Couldn't find project file: $LOCAL_HOME/projects/$project/${project}.jmx Exiting!!"
+    exit 77
+else
+    cLog "Using project file: $LOCAL_HOME/projects/$project/${project}.jmx"
+fi
 
 ###############################################################################
 #
@@ -138,6 +152,7 @@ cfgCreateMergedResultFile=${cfgCreateMergedResultFile-true}
 cfgLocalJmeterLogLevel=${cfgLocalJmeterLogLevel-WARN}
 cfgRemoteJmeterLogLevel=${cfgRemoteJmeterLogLevel-INFO}
 cfgCalculateSimpleStatsFromAResultFile=${cfgCalculateSimpleStatsFromAResultFile-true}
+cfgExctractFaultyURLs=${cfgExctractFaultyURLs=true}
 
 
 # TO-DO
@@ -270,7 +285,7 @@ function runsetup() {
         
         # wait for each instance to be fully operational
         status_check_count=0
-        status_check_limit=45
+        status_check_limit=120
         status_check_limit=`echo "$status_check_limit + $countof_instanceids" | bc` # increase wait time based on instance count
         echo -n "waiting for instance status checks to pass (this can take several minutes)..."
         count_passed=0
@@ -278,6 +293,7 @@ function runsetup() {
         do
             echo -n .
             status_check_count=$(( $status_check_count + 1))
+            #ec2-describe-instance-status --region $REGION ${attempted_instanceids[@]}
             count_passed=$(ec2-describe-instance-status --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCESTATUS/ {print $3}' | grep -c passed)
             sleep 1
         done
@@ -393,8 +409,7 @@ function runsetup() {
 	            -i $PEM_PATH/$PEM_FILE \
 	            -p $REMOTE_PORT \
 	            $USER@$host echo up 2>&1)" == "up" ] ; then
-	            echo "Host $host is not responding, script exiting..."
-	            echo
+	            cErr "Host $host is not responding, script exiting..."
 	            exit
 	        fi
 	    done
@@ -1241,6 +1256,7 @@ function runcleanup() {
             && {
                 cLog "Merged result file was successfully created"
             }
+
     else
         cWarn "Creating merged result file is disabled!"
     fi
@@ -1249,7 +1265,41 @@ function runcleanup() {
     #
     ############################################################################
 
-   
+
+
+    ############################################################################
+    # Will exctract all faulty URLs from downloaded JMeter CSV log files
+    # group them by the response code (error type)
+    # and save them in separate "*.errors" files
+    # 
+    # NOTE: Works only if cfgCreateMergedResultFile is enabled!!!
+    #
+    if ${cfgExctractFaultyURLs} ; then
+        cLog "Exctracting URLs from CSV error files is enabled..."
+        for (( i=0; i<$instance_count; i++ )) ; do
+            errFile="$LOCAL_HOME/projects/$project/$i/errors_csv.jtl"
+            outDir="$LOCAL_HOME/projects/$project/"
+            prefix="node-${i}-"
+            if [ -e ${errFile} ] ; then
+                CMD="${cfgPython} $LOCAL_HOME/extractFaultyUrls.py -i ${errFile} -o ${outDir} -p ${prefix}"
+                repeatTillSucceedWithExecTimeout 5 10 "${CMD}" \
+                    && {
+                        cLog "All faulty URLs were successfully extracted from ${errFile} and saved in: ${outDir}"
+                    } || {
+                        cLog "Something went wrong when extracting faulty URLs from: ${errFIle} !!!!!"
+                    }
+            else
+                cErr "CSV error file ${errFile} doesn't exist!!!!"
+            fi
+        done
+    else
+        cLog "Exctracting URLs from CSV error files is disabled!"
+    fi
+    #
+    #
+    ############################################################################
+
+  
     ############################################################################
     # Prepare a merged XML result file that will be processed by the 
     # Jenkins Performance Plugin. For merging we're going to use mergex tool:
@@ -1302,20 +1352,20 @@ function runcleanup() {
     #
     if ${cfgSaveCompressedResults} ; then
         if `isInstalled "bzip2"` ; then
-            cLog "BZipping separate result files and remote Jmeter log files into a single archive ${LOCAL_HOME}/projects/${project}/results/results.tar.bz2"
+            cLog "BZipping separate result files, list of faulty URLs and remote Jmeter log files into a single archive ${LOCAL_HOME}/projects/${project}/results/results.tar.bz2"
             cd ${LOCAL_HOME}/projects/$project \
                 && {
-                    time tar cvfj ./results/results.tar.bz2 $DATETIME-*.zip $DATETIME*.out ${DATETIME}-results-complete.jtl
+                    time tar cvfj ./results/results.tar.bz2 $DATETIME-*.zip $DATETIME*.out *.errors ${DATETIME}-results-complete.jtl
                     cd ${LOCAL_HOME}
                 } || {
                     cWarn "Something went wrong when compressing result files!"
                 }
             cd ${LOCAL_HOME}
         else 
-            cLog "Zipping separate result files and remote JMeter log files into a single archive ${LOCAL_HOME}/projects/${project}/results/results.zip"
+            cLog "Zipping separate result files, list of faulty URLs and remote JMeter log files into a single archive ${LOCAL_HOME}/projects/${project}/results/results.zip"
             cd ${LOCAL_HOME}/projects/$project \
                 && {
-                    time zip -9 -j -r results/results.zip $DATETIME-*.zip $DATETIME*.out ${DATETIME}-results-complete.jtl
+                    time zip -9 -j -r results/results.zip $DATETIME-*.zip $DATETIME*.out *.errors ${DATETIME}-results-complete.jtl
                     cd ${LOCAL_HOME}
                 } || {
                     cWarn "Something went wrong when compressing result files!"
@@ -1488,9 +1538,9 @@ function runcleanup() {
 
             # set nice color for the output :)
             tput setaf 6; tput bold;
-            cLog "Latency       : Mean=${latency_mean}ms, StDev=${latency_stdev}ms, Median=${latency_med}ms, Min=${latency_min}ms, Max=${latency_max}ms"
-            cLog "Response time : Mean=${response_mean}ms, StDev=${response_stdev}ms, Median=${response_med}ms, Min=${resptime_min}ms, Max=${resptime_max}ms"
-            cLog "Response size : Mean=${respsize_mean}bytes, StDev=${respsize_stdev}bytes, Median=${respsize_med}bytes, Min=${respsize_min}bytes, Max=${respsize_max}bytes"
+            cLog "Latency (Time to first byte)                     : Mean=${latency_mean}ms, StDev=${latency_stdev}ms, Median=${latency_med}ms, Min=${latency_min}ms, Max=${latency_max}ms"
+            cLog "Response time (Elapsed time / Time to last byte) : Mean=${response_mean}ms, StDev=${response_stdev}ms, Median=${response_med}ms, Min=${resptime_min}ms, Max=${resptime_max}ms"
+            cLog "Response size                                    : Mean=${respsize_mean}bytes, StDev=${respsize_stdev}bytes, Median=${respsize_med}bytes, Min=${respsize_min}bytes, Max=${respsize_max}bytes"
             # revert colors to default
             tput setaf default; tput sgr0; 
 
@@ -1844,6 +1894,7 @@ function runcleanup() {
     # tidy up working files
     # for debugging purposes you could comment out these lines
     rm $LOCAL_HOME/projects/$project/$DATETIME*.out
+    rm $LOCAL_HOME/projects/$project/*.errors
     rm $LOCAL_HOME/projects/$project/working*
     #
     # end of tidying up step

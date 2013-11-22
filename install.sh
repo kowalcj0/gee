@@ -106,7 +106,7 @@ cd $REMOTE_HOME
 
 # set the locale
 # required by the apt-get to work properly
-echo "settinh locale-gen to en_GB.UTF-8"
+echo "setting locale-gen to en_GB.UTF-8"
 sudo locale-gen en_GB.UTF-8
 
 
