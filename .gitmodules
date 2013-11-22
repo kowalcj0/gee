@@ -1,0 +1,3 @@
+[submodule "projects"]
+	path = projects
+	url = git@github.com:kowalcj0/jmeter-example-test-plans.git
