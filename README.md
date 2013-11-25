@@ -185,19 +185,17 @@ Then:
 in the "Build" section add "Execute shell" and paste the code below:
 ```bash
     # change permission for keys
-    if [ -e test/jmeter-ec2/ec2/jmeter-ec2.pem ]; then
-        chmod 600 test/jmeter-ec2/ec2/jmeter-ec2.pem
+    if [ -e ec2/jmeter-ec2.pem ]; then
+        chmod 400 ec2/jmeter-ec2.pem
     fi;
 
     # run the tests
-    cd test/jmeter-ec2
     project="drKingShultz" count="2" ./jmeter-ec2.sh
-    cd ../..
 
     # remove the unnecessary pem file
     # will prevent errors when trying to overide pem file on a new build 
-    if [ -e test/jmeter-ec2/ec2/jmeter-ec2.pem ]; then
-        rm test/jmeter-ec2/ec2/jmeter-ec2.pem
+    if [ -e ec2/jmeter-ec2.pem ]; then
+        rm ec2/jmeter-ec2.pem
     fi;
 ```
 
@@ -243,12 +241,13 @@ Everytime you run your tests, Gee produces few files that can:
 * be used to visualize the performance trend of your application
 
 What can be generated:
-* a HTML report with multiple PNG graphs. Here's an [example report](./docs/examples/results/index.html) [flag name: cfgCreateHTMLReport]
+* a HTML report with multiple PNG graphs. Here's an [example HTML report](http://htmlpreview.github.io/?https://github.com/kowalcj0/gee/blob/master/docs/examples/results/index.html) [flag name: cfgCreateHTMLReport]
 * an Aggregate CSV Report file [example file](./docs/examples/results/aggregate.csv) [flag name: cfgCreateAggregateCSVReport]
-* an Aggregate Response Time Percentiles CSV file [example file](./docs/examples/results/aggregatedResponseTimesPercentiles.csv) [flag name: cfgCreateAggregateCSVReport]
+* an Aggregate Response Time Percentiles CSV file (for all the samplers) [example file](./docs/examples/results/aggregatedResponseTimesPercentiles.csv) [flag name: cfgCreateAggregateCSVReport]
+* an Aggregate Response Time Percentiles CSV file (for each sampler)  [example file no. 1](./docs/examples/results/GetRespTimesPercentiles.csv) & [example file no. 2](./docs/examples/results/GetwithrandomfailureRespTimesPercentiles.csv) [flag name: cfgCreateAggregateCSVReport]
 * a CSV with few simple stats like: min, max, mean, median, stdev calculated for: Latency, Response time, Response Size [example file](./docs/examples/results/statistics.csv) [flag name: cfgCalculateSimpleStatsFromAResultFile]
 * a text file with a list of all URLs that: returned with an unexpected response code, didn't pass the assertion step etc. Check out all the *.errors files in an [example results archive](./docs/examples/results/results.tar.bz2) [flag name: cfgExctractFaultyURLs]
-* a XML file composed from all jenkins.xml files downloaded from all the nodes. It can be used by ie.: [Jenkins Performance* Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin) [flag name: cfgCreateMergedFileForJenkinsPerfPlugin]
+* a XML file composed from all jenkins.xml files downloaded from all the nodes. It can be used by ie.: [Jenkins Performance Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin) [flag name: cfgCreateMergedFileForJenkinsPerfPlugin]
 * a CSV file composed from all result.xml files downloaded from all the nodes. It can be used by ie.: [Jenkins Plot Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Plot+Plugin) [flag name: cfgCreateMergedResultFile]
 * a compressed archive (zip or bzip2) containing all the test run logs, error files, result files etc. [Example results archive](./docs/examples/results/results.tar.bz2) [flag name: cfgSaveCompressedResults]
 
