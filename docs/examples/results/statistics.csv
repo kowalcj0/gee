@@ -1,0 +1,2 @@
+latancy_mean,latency_stdev,latency_median,latency_min,latency_max,resptime_mean,resptime_stdev,resptime_median,resptime_min,resptime_max,respsize_mean,respsize_stdev,respsize_median,respsize_min,respsize_max
+100,257.788,0,0,847,570.111,520.908,538.5,17,1176,10626.8,10513,2364,1457,23994

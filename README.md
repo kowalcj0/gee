@@ -3,23 +3,23 @@
 
 Gee is a project based on the Oliver Lloyd's [jmeter-ec2](https://github.com/oliverlloyd/jmeter-ec2) script.
 I've added few extensions and modifitcations, like:
-* custom config files that are not commited to the repo
 * generate reports automatically using [JMeterPluginsCMD](http://jmeter-plugins.org/wiki/JMeterPluginsCMD/)
 * generate reports manually from zipped result files using JMeterPluginsCMD
-* start PerfMon server agent on load generatign nodes
-* download and install jmeter-plugins automatically
+* starting PerfMon server agent on load generatign nodes
 * simple integration with [Jenkins CI](http://jenkins-ci.org/)
-* a script that can verify results an mark Jenkins build as failed or unstable
+* threshold check script that can verify test run results and mark Jenkins build as failed or unstable
+* exctracting faulty URLs from JMeter CSV result files
+* custom config files that are not commited to the repo
 
 If all pre-requisits are met, script will automatically download all required
 tools and plugins.
 
 
 ## Prerequisites
-1. java 6+ with JAVA\_HOME sys variable set `required to locally generate graphs`
+1. java 6+ with `JAVA\_HOME` sys variable set required to locally generate graphs
 2. CLI tools: scp, wget, zip/bzip2, unzip, grep, awk 
 3. an EC2 account, a key pair pem file and AWS Access Key ID & Secret Access Key
-4. Python 2.6+ to run genAggregateRepsTimesPercentilesReports.py
+4. Python 2.6+ to run two scripts: genAggregateRepsTimesPercentilesReports.py & extractFaultyUrls.py
 
 
 ## Obtaining AWS Access Key ID & Secret Access Key
@@ -36,6 +36,10 @@ Then:
 (\*) i.e.: if your user name is 'jk', then file should be named: jk\_secrets.properties
 ps. By default all the \*\_secrets.properties files are ignored by git. 
 To change this behaviour please edit .gitignore file.
+
+## Video tutorials
+Checkout this yt [playlist](https://www.youtube.com/playlist?list=PLAUamg5VPF5HAxDQlDVItNLfTBNzhpnW4) 
+with videos explaining how to configure and use Gee.
 
 
 ## How to configure it
@@ -232,6 +236,34 @@ A list of Jenkins plugins I found quite handy when working with it.
 * [Performance Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin) will generate a performance trend from a JMeter XML result files. Can be a real overkill to your Jenkins instance when these XML files are big!!!!
 * [Site Monitor](https://wiki.jenkins-ci.org/display/JENKINS/SiteMonitor+Plugin) I'm using it to check it tested environment is up and running.
 
+
+## Test run outputs
+Everytime you run your tests, Gee produces few files that can:
+* help you analyze the test run results 
+* be used to visualize the performance trend of your application
+
+What can be generated:
+* a HTML report with multiple PNG graphs. Here's an [example report](./docs/examples/results/index.html) [flag name: cfgCreateHTMLReport]
+* an Aggregate CSV Report file [example file](./docs/examples/results/aggregate.csv) [flag name: cfgCreateAggregateCSVReport]
+* an Aggregate Response Time Percentiles CSV file [example file](./docs/examples/results/aggregatedResponseTimesPercentiles.csv) [flag name: cfgCreateAggregateCSVReport]
+* a CSV with few simple stats like: min, max, mean, median, stdev calculated for: Latency, Response time, Response Size [example file](./docs/examples/results/statistics.csv) [flag name: cfgCalculateSimpleStatsFromAResultFile]
+* a text file with a list of all URLs that: returned with an unexpected response code, didn't pass the assertion step etc. Check out all the *.errors files in an [example results archive](./docs/examples/results/results.tar.bz2) [flag name: cfgExctractFaultyURLs]
+* a XML file composed from all jenkins.xml files downloaded from all the nodes. It can be used by ie.: [Jenkins Performance* Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin) [flag name: cfgCreateMergedFileForJenkinsPerfPlugin]
+* a CSV file composed from all result.xml files downloaded from all the nodes. It can be used by ie.: [Jenkins Plot Plugin](https://wiki.jenkins-ci.org/display/JENKINS/Plot+Plugin) [flag name: cfgCreateMergedResultFile]
+* a compressed archive (zip or bzip2) containing all the test run logs, error files, result files etc. [Example results archive](./docs/examples/results/results.tar.bz2) [flag name: cfgSaveCompressedResults]
+
+All these files can generated once enabled in your configuration file.
+Btw. by default most of them are already enabled :)
+Here's a list of all configuration flags, that control what is produced 
+during a test run:
+* cfgCreateHTMLReport
+* cfgCreateAggregateCSVReport
+* cfgGenerateAggregatedResponseTimePercentilesReports
+* cfgCalculateSimpleStatsFromAResultFile
+* cfgExctractFaultyURLs
+* cfgSaveCompressedResults
+* cfgCreateMergedFileForJenkinsPerfPlugin
+* cfgCreateMergedResultFile
 
 ## How to generate graphs from long test runs
 
