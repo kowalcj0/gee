@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jmeterTestPlan version="1.2" properties="2.4" jmeter="2.9 r1437961">
+<jmeterTestPlan version="1.2" properties="2.5" jmeter="2.10 r1533061">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="perf-iyp-test-plan-template-with-data-file" enabled="true">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="test-plan-template-with-data-file" enabled="true">
       <stringProp name="TestPlan.comments">/**
 * 
 * A test plan template, that will read in a CSV data file
@@ -163,7 +163,7 @@
             <value>15.0</value>
             <savedValue>0.0</savedValue>
           </doubleProp>
-          <stringProp name="calcMode">this thread only</stringProp>
+          <intProp name="calcMode">0</intProp>
         </ConstantThroughputTimer>
         <hashTree/>
         <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="load data" enabled="true">
@@ -172,7 +172,7 @@
           <stringProp name="filename">${datafilepath}</stringProp>
           <boolProp name="quotedData">false</boolProp>
           <boolProp name="recycle">true</boolProp>
-          <stringProp name="shareMode">All threads</stringProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
           <boolProp name="stopThread">false</boolProp>
           <stringProp name="variableNames">CONTEXT,</stringProp>
           <stringProp name="TestPlan.comments">/**
