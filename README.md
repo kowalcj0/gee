@@ -37,9 +37,20 @@ Then:
 ps. By default all the \*\_secrets.properties files are ignored by git. 
 To change this behaviour please edit .gitignore file.
 
+
 ## Video tutorials
-Checkout this yt [playlist](https://www.youtube.com/playlist?list=PLAUamg5VPF5HAxDQlDVItNLfTBNzhpnW4) 
-with videos explaining how to configure and use Gee.
+I prepared a bunch og video tutorial showing how to configure and use Gee.
+Here's a list of all the videos:
+* [01 - cloning the project](http://www.youtube.com/watch?v=RWkJl4OXTJI&hd=1)
+* [02 - initialize vagrant box](http://www.youtube.com/watch?v=cUcGvLy_Lf8&hd=1)
+* [03 - running an example test on a vagrant box](http://www.youtube.com/watch?v=WrEqdKgz26Y&hd=1)
+* [04 - create a first test plan, run it using Gee and a vagrant box](http://www.youtube.com/watch?v=b4aSFCRY_hs&hd=1)
+* [05 - configure passwordless ssh access to a linux box](http://www.youtube.com/watch?v=fXhVTF7JJ_8&hd=1)
+* [06 - automatically install JMeter with plugins on a remote machine](http://www.youtube.com/watch?v=MUJ1_PFclds&hd=1)
+* [07 - run your JMeter test on remote linux hosts](http://www.youtube.com/watch?v=1rg13V6MjUI&hd=1)
+* [08 - run your JMeter test on Amazon EC2](http://www.youtube.com/watch?v=y_U4BrCydF0&hd=1)
+
+Altenatively you can watch them all here: [yt playlist](https://www.youtube.com/playlist?list=PLAUamg5VPF5HAxDQlDVItNLfTBNzhpnW4)
 
 
 ## How to configure it
@@ -291,6 +302,15 @@ Gee / JMeter-ec2 is free software: you can redistribute it and/or modify it unde
 Gee / JMeter-ec2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with Gee / JMeter-ec2. If not, see http://www.gnu.org/licenses/.
+
+
+## handy bash commands
+
+find which custom workspace is used by selected Jenkins jobs
+```bash
+    cd /dir/with/jenkins/jobs
+    find QAA* -iname config.xml -print0 | xargs -0 grep customWorkspace
+```
 
 ## Original Jenkins-ec2 description:
 ----------------------------
