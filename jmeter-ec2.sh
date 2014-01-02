@@ -93,9 +93,12 @@ if [ -z "$cfg" ] ; then
         . $LOCAL_HOME/projects/$project/jmeter-ec2.properties
     fi
 else
+    # check if AWS Access Keys are set
+    getAWSSecrets; 
     echo "using custom cfg file: ${cfg}";
     . ${cfg}
 fi
+
 
 cLog "LOCAL_HOME after processing config files is: ${LOCAL_HOME}"
 
@@ -253,6 +256,9 @@ function runsetup() {
         echo
         echo
               
+
+
+
         # create the instance(s) and capture the instance id(s)
         echo -n "requesting $instance_count instance(s)..."
         attempted_instanceids=(`ec2-run-instances \
@@ -286,11 +292,11 @@ function runsetup() {
         status_check_count=0
         status_check_limit=120
         status_check_limit=`echo "$status_check_limit + $countof_instanceids" | bc` # increase wait time based on instance count
-        echo -n "waiting for instance status checks to pass (this can take several minutes)..."
+        cLog "waiting for instance status checks to pass (this can take several minutes)..."
         count_passed=0
         while [ "$count_passed" -ne "$instance_count" ] && [ $status_check_count -lt $status_check_limit ]
         do
-            echo -n .
+            cLog "."
             status_check_count=$(( $status_check_count + 1))
             #ec2-describe-instance-status --region $REGION ${attempted_instanceids[@]}
             count_passed=$(ec2-describe-instance-status --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCESTATUS/ {print $3}' | grep -c passed)
@@ -308,7 +314,7 @@ function runsetup() {
 			
 			# set hosts array
             hosts=(`ec2-describe-instances --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCE/ {print $4}'`)
-            echo "all hosts ready"
+            cLog "all hosts ready"
         else # Amazon probably failed to start a host [*** NOTE this is fairly common ***] so show a msg - TO DO. Could try to replace it with a new one?
             original_count=$countof_instanceids
             # filter requested instances for only those that started well
@@ -321,11 +327,11 @@ function runsetup() {
 
             if [ "${#healthy_instanceids[@]}" -eq 0 ] ; then
                 countof_instanceids=0
-                echo "no instances successfully initialised, exiting"
+                cErr "no instances successfully initialised, exiting"
 				if [ "$terminate" = "TRUE" ] ; then
 					echo
 				    # attempt to terminate any running instances - just to be sure
-			        echo "terminating instance(s)..."
+			        cErr "terminating instance(s)..."
 					# We use attempted_instanceids here to make sure that there are no orphan instances left lying around
 			        ec2-terminate-instances --region $REGION ${attempted_instanceids[@]}
 			        echo
@@ -336,7 +342,7 @@ function runsetup() {
             fi
             countof_failedinstances=`echo "$original_count - $countof_instanceids"|bc`
             if [ "$countof_failedinstances" -gt 0 ] ; then # if we still see failed instances then write a message
-                echo "$countof_failedinstances instances(s) failed to start, only $countof_instanceids machine(s) will be used in the test"
+                cErr "$countof_failedinstances instances(s) failed to start, only $countof_instanceids machine(s) will be used in the test"
                 instance_count=$countof_instanceids
             fi
 			
@@ -349,7 +355,7 @@ function runsetup() {
 		echo
 		
 		# assign a name tag to each instance
-		echo "assigning tags..."
+		cLog "assigning tags..."
 		(ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag ProductKey=$project)
         (ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag Service=prod)
         (ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag Description=PerformanceTest)
@@ -357,7 +363,7 @@ function runsetup() {
         (ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag ContactEmail=$EMAIL)
 		(ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag Name="jmeter-ec2-$project")
 		wait
-        echo "complete"
+        cLog "complete"
 		echo
 		
         # if provided, assign elastic IPs to each instance
@@ -448,7 +454,7 @@ function runsetup() {
 
     # scp install.sh
     if [ "$setup" = "TRUE" ] ; then
-    	echo -n "copying install.sh to $instance_count server(s)..."
+    	cLog "copying install.sh to $instance_count server(s)..."
         #sleep 20s
 	    for host in ${hosts[@]} ; do
 
