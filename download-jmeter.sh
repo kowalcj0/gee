@@ -27,7 +27,7 @@ else
             echo "${JMETER_VERSION} successfully downloaded"
             unzip -q ${JMETER_VERSION}.zip \
                 && {
-                    chmod +x ${JMETER_VERSION}/bin/jmeter.sh
+                    chmod +x ${JMETER_VERSION}/bin/*.sh
                     chmod +x ${JMETER_VERSION}/bin/jmeter
                     # change JMeter's log_level
                     sed -i.bck 's/.*log_level.jmeter=.*/log_level.jmeter='${jmeterLogLevel}'/' ${JMETER_VERSION}/bin/jmeter.properties \
