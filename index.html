@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Gee : Gee is a modified version of Oliver Lloyd's JMeter-EC2 project." />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Gee</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/kowalcj0/gee">View on GitHub</a>
+
+          <h1 id="project_title">Gee</h1>
+          <h2 id="project_tagline">Gee is a modified version of Oliver Lloyd's JMeter-EC2 project.</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/kowalcj0/gee/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/kowalcj0/gee/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="gee--jmeter-ec2-script" class="anchor" href="#gee--jmeter-ec2-script"><span class="octicon octicon-link"></span></a>Gee / JMeter EC2 script</h1>
+
+<hr><p>Gee is a project based on the Oliver Lloyd's <a href="https://github.com/oliverlloyd/jmeter-ec2">jmeter-ec2</a> script.
+I've added few extensions and modifitcations, like:</p>
+
+<ul>
+<li>generate reports automatically using <a href="http://jmeter-plugins.org/wiki/JMeterPluginsCMD/">JMeterPluginsCMD</a>
+</li>
+<li>generate reports manually from zipped result files using JMeterPluginsCMD</li>
+<li>starting PerfMon server agent on load generatign nodes</li>
+<li>simple integration with <a href="http://jenkins-ci.org/">Jenkins CI</a>
+</li>
+<li>threshold check script that can verify test run results and mark Jenkins build as failed or unstable</li>
+<li>exctracting faulty URLs from JMeter CSV result files</li>
+<li>custom config files that are not commited to the repo</li>
+</ul><p>If all pre-requisits are met, script will automatically download all required
+tools and plugins.</p>
+
+<h2>
+<a name="prerequisites" class="anchor" href="#prerequisites"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
+
+<ol>
+<li>java 6+ with <code>JAVA\_HOME</code> sys variable set required to locally generate graphs</li>
+<li>CLI tools: scp, wget, zip/bzip2, unzip, grep, awk </li>
+<li>an EC2 account, a key pair pem file and AWS Access Key ID &amp; Secret Access Key</li>
+<li>Python 2.6+ to run two scripts: genAggregateRepsTimesPercentilesReports.py &amp; extractFaultyUrls.py</li>
+</ol><h2>
+<a name="obtaining-aws-access-key-id--secret-access-key" class="anchor" href="#obtaining-aws-access-key-id--secret-access-key"><span class="octicon octicon-link"></span></a>Obtaining AWS Access Key ID &amp; Secret Access Key</h2>
+
+<p>To get your :</p>
+
+<ul>
+<li>Key Pair pem file (it's a private key) go <a href="https://console.aws.amazon.com/ec2/home?region=us-east-1#s=KeyPairs">here</a>
+</li>
+<li>Access Key ID &amp; Secret Access Key go to the <a href="https://portal.aws.amazon.com/gp/aws/securityCredentials">Security Credentials</a> page</li>
+</ul><p>Then:</p>
+
+<ul>
+<li>Save the pem file in the ./ec2 folder</li>
+<li>Change the pem file properties to 400. (<code>chmod 400 ./ec2/thisipemfile.pem</code>)</li>
+<li>Create a copy of the 'secrets.properties' file and prepend your user name to its name. (*)</li>
+<li>Add your Access Key ID and Access Secret Key to that file</li>
+</ul><p>(*) i.e.: if your user name is 'jk', then file should be named: jk_secrets.properties
+ps. By default all the *_secrets.properties files are ignored by git. 
+To change this behaviour please edit .gitignore file.</p>
+
+<h2>
+<a name="video-tutorials" class="anchor" href="#video-tutorials"><span class="octicon octicon-link"></span></a>Video tutorials</h2>
+
+<p>Checkout this yt <a href="https://www.youtube.com/playlist?list=PLAUamg5VPF5HAxDQlDVItNLfTBNzhpnW4">playlist</a> 
+with videos explaining how to configure and use Gee.</p>
+
+<h2>
+<a name="how-to-configure-it" class="anchor" href="#how-to-configure-it"><span class="octicon octicon-link"></span></a>How to configure it</h2>
+
+<p>Edit the file jmeter-ec2.properties and follow instruction inside that file.</p>
+
+<p>You can also create also a custom cfg file i.e. per specific environment and use
+it by passing "cfg" parameter to the jmeter-ec2.sh. This can be handy when running
+tests on local machines and non on EC2</p>
+
+<div class="highlight highlight-bash"><pre>    <span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">cfg</span><span class="o">=</span><span class="s2">"your_custom_cfg_file.properties"</span> ./jmeter-ec2.sh
+</pre></div>
+
+<h2>
+<a name="how-to-set-up-your-jmeter-jmx-project" class="anchor" href="#how-to-set-up-your-jmeter-jmx-project"><span class="octicon octicon-link"></span></a>How to set up your jmeter (jmx) project</h2>
+
+<p>Before you start adding your own projects, please refer to an example ones 
+already present in the projects folder.</p>
+
+<p>Now, in next few steps I'll try to explain how I configure my projects.</p>
+
+<p><strong>Step 1:</strong>
+First of all I highly recommend using <code>Utlimate Thread Group</code> plugin as the thread manager.
+This plugin gives you precise control over the generated traffic.</p>
+
+<p><strong>Step 2:</strong>
+Once you've added such a thread to your project, then to produce all the nice graphs,
+add four listeners to your project:</p>
+
+<ul>
+<li>two to the thread group
+
+<ul>
+<li>jp@gc LatenciesOverTime</li>
+<li>Generate Summary Results</li>
+</ul>
+</li>
+<li>and two outside of the thread group
+
+<ul>
+<li>2 PerfMon Collector listeners (local &amp; remote)</li>
+</ul>
+</li>
+</ul><p><strong>Step 3:</strong>
+Having all listeners in place, the next step is to configure them.</p>
+
+<ul>
+<li>Generate Summary Results 
+
+<ul>
+<li>fortunately it doesn't require any configuration, but please leave its name unchanged :)</li>
+</ul>
+</li>
+<li>jp@gc LatenciesOverTime
+
+<ul>
+<li>should write it's results down to a "~/result.jtl" file.</li>
+</ul>
+</li>
+<li>2 PerfMon Collector listeners (local &amp; remote)
+
+<ul>
+<li>Remote one should write results in: ~/PerfMon-remote.jtl</li>
+<li>and Local one should write down to: ~/PerfMon-local.jtl</li>
+</ul>
+</li>
+<li>jp@gc LatenciesOverTime and PerfMon Collectors 
+
+<ul>
+<li>should be configured just like this:</li>
+<li><img src="./resources/SampleResultSaveConfiguration.png" alt="alt text" title="Sample Result Save Configuration"></li>
+</ul>
+</li>
+</ul><p>btw. Listener's "Configure" button is here :
+<img src="./resources/Listener-configuration.png" alt="alt text" title="Listener Configure button"></p>
+
+<p><strong>Step 4:</strong>
+In <code>projects</code> directory create a folder with the same name as the project file.
+Then put your jmx in there.
+Here's an example project folder structure:</p>
+
+<pre><code>./jmeter-ec2
+    |
+    \projects
+        |
+        \drKingShultz
+            |
+            \drKingShultz.jmx
+</code></pre>
+
+<h3>
+<a name="why-do-we-need-those-listeners" class="anchor" href="#why-do-we-need-those-listeners"><span class="octicon octicon-link"></span></a>Why do we need those listeners:</h3>
+
+<p><strong>Generate Summary Results</strong> is used to show status updates while running your tests.<br><strong>jp@gc Latencies Over Time</strong> result file is used to generate most of the graphs.<br><strong>PerfMon Collector listeners</strong>, will collect stat data from the:</p>
+
+<ul>
+<li>machines you're running your test against<br>
+</li>
+<li>and from the EC2 machines running your jmeter tests</li>
+</ul><p>To collect data from both sources we're using <a href="http://code.google.com/p/jmeter-plugins/wiki/PerfMonAgent">server-agent</a>.
+Read the short manual how to run the server agent on the remote machines.</p>
+
+<h1>
+<a name="how-to-run-your-project" class="anchor" href="#how-to-run-your-project"><span class="octicon octicon-link"></span></a>How to run your project</h1>
+
+<p>Gee/JMeter-ec2 can be executed locally on you computer or using a CI system like Jenkins.
+At the moment this script works well on tested on Linux Mint 13,14,15, Ubuntu 12.04, RedHat 5. </p>
+
+<h2>
+<a name="how-to-run-it-locally" class="anchor" href="#how-to-run-it-locally"><span class="octicon octicon-link"></span></a>How to run it locally</h2>
+
+<p>Once you have everything in place, simply run:</p>
+
+<div class="highlight highlight-bash"><pre>    <span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">count</span><span class="o">=</span><span class="s2">"2"</span> ./jmeter-ec2.sh
+</pre></div>
+
+<p>"count" stands for the number of EC2 instances to be launched</p>
+
+<p>To get a bit more verbose output, enable DEBUG mode :</p>
+
+<div class="highlight highlight-bash"><pre>    <span class="nv">DEBUG</span><span class="o">=</span><span class="nb">true </span><span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">count</span><span class="o">=</span><span class="s2">"2"</span> ./jmeter-ec2.sh
+</pre></div>
+
+<h2>
+<a name="how-to-run-it-locally-using-a-comma-delimeted-list-of-hosts" class="anchor" href="#how-to-run-it-locally-using-a-comma-delimeted-list-of-hosts"><span class="octicon octicon-link"></span></a>How to run it locally using a comma-delimeted list of hosts</h2>
+
+<p>All the hosts used as load generators need to have a passwordless SSH access configured.
+<a href="http://www.debian-administration.org/articles/152">Here's</a> a nice article how this can be done on Debian based OSes.</p>
+
+<p>Once SSH access is configured, then create a copy of an <code>example-local-config.properties</code> file and adjust it to your needs.
+The most important thing is to provide the list of the IPs/Hostnames you're going to use as generators and a pem key filename.
+This pem file is your private key, generated when configuring passwordless SSH access.</p>
+
+<p>Then run the project providing the "cfg" parameter.</p>
+
+<div class="highlight highlight-bash"><pre>   <span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">cfg</span><span class="o">=</span><span class="s2">"path/to/your/custom/local-config-file.properties"</span> ./jmeter-ec2.sh 
+</pre></div>
+
+<p>ps. You don't have to provide the "count" parameter, as it will be automatically set to the number of hosts provided in the config file.</p>
+
+<h2>
+<a name="running-locally-with-vagrant" class="anchor" href="#running-locally-with-vagrant"><span class="octicon octicon-link"></span></a>Running locally with Vagrant</h2>
+
+<p><a href="http://vagrantup.com">Vagrant</a> allows you to test your jmeter-ec2 scripts locally before pushing them to ec2.</p>
+
+<h3>
+<a name="pre-requisits" class="anchor" href="#pre-requisits"><span class="octicon octicon-link"></span></a>Pre-requisits</h3>
+
+<ul>
+<li><a href="http://vagrantup.com">Vagrant</a></li>
+<li><a href="https://www.virtualbox.org/">VirtualBox</a></li>
+</ul><h3>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage:</h3>
+
+<p>Use <code>jmeter-ec2.properties.vagrant</code> as a template for local provisioning. This file is setup to use Vagrants ssh key, ports, etc.</p>
+
+<div class="highlight highlight-bash"><pre><span class="c"># start vm and provision defaultjre</span>
+vagrant up
+<span class="c"># run your project</span>
+<span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">cfg</span><span class="o">=</span>jmeter-ec2.properties.vagrant ./jmeter-ec2.sh
+<span class="c"># or for a more verbose output run it with DEBUG=true</span>
+<span class="nv">DEBUG</span><span class="o">=</span><span class="nb">true </span><span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">cfg</span><span class="o">=</span>jmeter-ec2.properties.vagrant ./jmeter-ec2.sh
+</pre></div>
+
+<h3>
+<a name="note" class="anchor" href="#note"><span class="octicon octicon-link"></span></a>Note</h3>
+
+<ul>
+<li>You may need to edit the <code>Vagrantfile</code> to meet any specific networking needs. See Vagrant's <a href="http://docs.vagrantup.com/v2/getting-started/networking.html">networking documentation</a> for details</li>
+</ul><h2>
+<a name="how-to-run-it-on-jenkins" class="anchor" href="#how-to-run-it-on-jenkins"><span class="octicon octicon-link"></span></a>How to run it on Jenkins</h2>
+
+<p>Create a new job:</p>
+
+<p>Mark 'This build is parameterized' as enabled.
+Then:</p>
+
+<ul>
+<li>add 'File parameter' and set 'File location' to 'test/jmeter-ec2/ec2/jmeter-ec2.pem'</li>
+<li>add 'Password Parameter' named 'AWS_ACCESS_KEY' with no default value</li>
+<li>add 'Password Parameter' named 'AWS_SECRET_KEY' with no default value</li>
+<li>add 'String parameter' name 'JAVA_HOME' with default value poitning at the JAVA dir on the Jenkins</li>
+</ul><p>in the "Build" section add "Execute shell" and paste the code below:</p>
+
+<div class="highlight highlight-bash"><pre>    <span class="c"># change permission for keys</span>
+    <span class="k">if</span> <span class="o">[</span> -e ec2/jmeter-ec2.pem <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+<span class="k">        </span>chmod 400 ec2/jmeter-ec2.pem
+    <span class="k">fi</span><span class="p">;</span>
+
+    <span class="c"># run the tests</span>
+    <span class="nv">project</span><span class="o">=</span><span class="s2">"drKingShultz"</span> <span class="nv">count</span><span class="o">=</span><span class="s2">"2"</span> ./jmeter-ec2.sh
+
+    <span class="c"># remove the unnecessary pem file</span>
+    <span class="c"># will prevent errors when trying to overide pem file on a new build </span>
+    <span class="k">if</span> <span class="o">[</span> -e ec2/jmeter-ec2.pem <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+<span class="k">        </span>rm ec2/jmeter-ec2.pem
+    <span class="k">fi</span><span class="p">;</span>
+</pre></div>
+
+<p>To analyze result files and create a simple performance report:
+Add a "Publish performance test result report" post-build action.
+Then point at the $WORKSPACE/projects/drKingShultz/results/jenkins.jtl file
+Add desired performance thresholds to decide when tests should pass or fail.</p>
+
+<h2>
+<a name="reports" class="anchor" href="#reports"><span class="octicon octicon-link"></span></a>Reports</h2>
+
+<p>Once test is finished, you can find a simple HTML report in the:</p>
+
+<pre><code>jmeter-ec2
+    |
+    \drKingShultz
+        |
+        \results
+</code></pre>
+
+<p>Report file name is configurable. By default script will use:
+<code>${DATETIME}-report.html</code> where ${DATETIME} is the current datetime taken on script start.
+Datetime pattern is <code>%Y-%m-%d_-_%H-%M</code> so an example report filename will be:</p>
+
+<ul>
+<li>ie: 2013-06-13_-_09-56-report.html </li>
+</ul><p>btw. If you plan to run this script on Jenkins, then it's worth setting the 
+report name (cfg variable name is: cfgHtmlReportFilename) to something like index.html
+Then it's easy to point at a fixed filename when using plugins like <a href="https://wiki.jenkins-ci.org/display/JENKINS/HTML+Publisher+Plugin">HTML Publisher plugin</a></p>
+
+<h2>
+<a name="handy-jenkins-plugins" class="anchor" href="#handy-jenkins-plugins"><span class="octicon octicon-link"></span></a>Handy Jenkins Plugins</h2>
+
+<p>A list of Jenkins plugins I found quite handy when working with it.</p>
+
+<ul>
+<li>
+<a href="https://wiki.jenkins-ci.org/display/JENKINS/AnsiColor+Plugin">ANSIColor</a> for coloring console log :)</li>
+<li>
+<a href="https://wiki.jenkins-ci.org/display/JENKINS/Plot+Plugin">Plot Plugin</a> can be used to plot performance trends from a CSV,XML,Properties files. I only use it with the aggregate CSV result files that are generated by the Gee/JMeter-EC2 script.</li>
+<li>
+<a href="https://wiki.jenkins-ci.org/display/JENKINS/HTML+Publisher+Plugin">HTML Publisher Plugin</a> will publish HTML reports generated by Gee/JMeter-EC2 script</li>
+<li>
+<a href="https://wiki.jenkins-ci.org/display/JENKINS/Locks+and+Latches+plugin">Locks and Latches plugin</a> prevents builds from running simultanously on the same load generators</li>
+<li>
+<a href="https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin">Performance Plugin</a> will generate a performance trend from a JMeter XML result files. Can be a real overkill to your Jenkins instance when these XML files are big!!!!</li>
+<li>
+<a href="https://wiki.jenkins-ci.org/display/JENKINS/SiteMonitor+Plugin">Site Monitor</a> I'm using it to check it tested environment is up and running.</li>
+</ul><h2>
+<a name="test-run-outputs" class="anchor" href="#test-run-outputs"><span class="octicon octicon-link"></span></a>Test run outputs</h2>
+
+<p>Everytime you run your tests, Gee produces few files that can:</p>
+
+<ul>
+<li>help you analyze the test run results </li>
+<li>be used to visualize the performance trend of your application</li>
+</ul><p>What can be generated:</p>
+
+<ul>
+<li>a HTML report with multiple PNG graphs. Here's an <a href="http://htmlpreview.github.io/?https://github.com/kowalcj0/gee/blob/master/docs/examples/results/index.html">example HTML report</a> [flag name: cfgCreateHTMLReport]</li>
+<li>an Aggregate CSV Report file <a href="./docs/examples/results/aggregate.csv">example file</a> [flag name: cfgCreateAggregateCSVReport]</li>
+<li>an Aggregate Response Time Percentiles CSV file (for all the samplers) <a href="./docs/examples/results/aggregatedResponseTimesPercentiles.csv">example file</a> [flag name: cfgCreateAggregateCSVReport]</li>
+<li>an Aggregate Response Time Percentiles CSV file (for each sampler)  <a href="./docs/examples/results/GetRespTimesPercentiles.csv">example file no. 1</a> &amp; <a href="./docs/examples/results/GetwithrandomfailureRespTimesPercentiles.csv">example file no. 2</a> [flag name: cfgCreateAggregateCSVReport]</li>
+<li>a CSV with few simple stats like: min, max, mean, median, stdev calculated for: Latency, Response time, Response Size <a href="./docs/examples/results/statistics.csv">example file</a> [flag name: cfgCalculateSimpleStatsFromAResultFile]</li>
+<li>a text file with a list of all URLs that: returned with an unexpected response code, didn't pass the assertion step etc. Check out all the *.errors files in an <a href="./docs/examples/results/results.tar.bz2">example results archive</a> [flag name: cfgExctractFaultyURLs]</li>
+<li>a XML file composed from all jenkins.xml files downloaded from all the nodes. It can be used by ie.: <a href="https://wiki.jenkins-ci.org/display/JENKINS/Performance+Plugin">Jenkins Performance Plugin</a> [flag name: cfgCreateMergedFileForJenkinsPerfPlugin]</li>
+<li>a CSV file composed from all result.xml files downloaded from all the nodes. It can be used by ie.: <a href="https://wiki.jenkins-ci.org/display/JENKINS/Plot+Plugin">Jenkins Plot Plugin</a> [flag name: cfgCreateMergedResultFile]</li>
+<li>a compressed archive (zip or bzip2) containing all the test run logs, error files, result files etc. <a href="./docs/examples/results/results.tar.bz2">Example results archive</a> [flag name: cfgSaveCompressedResults]</li>
+</ul><p>All these files can generated once enabled in your configuration file.
+Btw. by default most of them are already enabled :)
+Here's a list of all configuration flags, that control what is produced 
+during a test run:</p>
+
+<ul>
+<li>cfgCreateHTMLReport</li>
+<li>cfgCreateAggregateCSVReport</li>
+<li>cfgGenerateAggregatedResponseTimePercentilesReports</li>
+<li>cfgCalculateSimpleStatsFromAResultFile</li>
+<li>cfgExctractFaultyURLs</li>
+<li>cfgSaveCompressedResults</li>
+<li>cfgCreateMergedFileForJenkinsPerfPlugin</li>
+<li>cfgCreateMergedResultFile</li>
+</ul><h2>
+<a name="how-to-generate-graphs-from-long-test-runs" class="anchor" href="#how-to-generate-graphs-from-long-test-runs"><span class="octicon octicon-link"></span></a>How to generate graphs from long test runs</h2>
+
+<p>By default jmeter-ec2 script will generate graphs using 1920x1200px resolution.
+In case you need to create a report from a very long test, and you want to change the default graph resolution, 
+then you can use <code>analyzeZippedResults.sh</code> script for this purpose.</p>
+
+<p>Here's an example usage:</p>
+
+<div class="highlight highlight-bash"><pre>    <span class="nv">FILES</span><span class="o">=</span><span class="s2">"path/to/a/folder/with/result/files/file_name_pattern_with_an_asterisk-*.zip"</span> <span class="nv">WIDTH</span><span class="o">=</span>20000 <span class="nv">HEIGHT</span><span class="o">=</span>1080 ./analyzeZippedResults.sh
+</pre></div>
+
+<p>Where:</p>
+
+<ul>
+<li>FILES -  [MANDATORY] A path to zipped result files. User can use an asterisk to process multiple files (i.e.: from multiple nodes). Just like you'd use 'ls' command to list all the files you want to process.</li>
+<li>WIDTH -  [OPTIONAL] sets the width of the generated graphs, default is 1920</li>
+<li>HEIGHT - [OPTIONAL] sets the height of the generated graphs, defaul is 1200</li>
+<li>JMETER - [OPTIONAL] is the path to jmeter folder with JMeterPlugins installed</li>
+<li>TARGET - [OPTIONAL] parameter that defines where output report with graphs will be stored. If not provided then "./target" will be used</li>
+<li>DEBUG -  [OPTIONAL] parameter that enables more verbose output, use DEBUG=true</li>
+</ul><h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License:</h2>
+
+<p>Gee / JMeter-ec2 is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</p>
+
+<p>Gee / JMeter-ec2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.</p>
+
+<p>You should have received a copy of the GNU General Public License along with Gee / JMeter-ec2. If not, see <a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>.</p>
+
+<h2>
+<a name="original-jenkins-ec2-description" class="anchor" href="#original-jenkins-ec2-description"><span class="octicon octicon-link"></span></a>Original Jenkins-ec2 description:</h2>
+
+<hr><p>Is available @ <a href="https://github.com/oliverlloyd/jmeter-ec2">jmeter-ec2</a> page.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Gee maintained by <a href="https://github.com/kowalcj0">kowalcj0</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
